@@ -70,32 +70,34 @@ Please begin."""
         return prompt
     
     def call_gemini_api(self, prompt: str) -> str:
-        """
-        调用 Gemini API
-        
-        Args:
-            prompt: 分析提示词
-            
-        Returns:
-            API 响应文本
-        """
+  
         try:
+            # 启用 Google 搜索工具
+            grounding_tool = types.Tool(
+                google_search=types.GoogleSearch()
+            )
+
+            # 配置生成设置，包括联网搜索
+            config = types.GenerateContentConfig(
+                temperature=0.1,
+                max_output_tokens=2048,
+                top_p=0.8,
+                top_k=40,
+                tools=[grounding_tool],
+                thinking_config=types.ThinkingConfig(thinking_budget=0)
+            )
+
+            # 发送请求
             response = self.client.models.generate_content(
                 model="gemini-2.5-flash",
                 contents=prompt,
-                config=types.GenerateContentConfig(
-                    temperature=0.1,  # 降低随机性，保持客观性
-                    max_output_tokens=2048,
-                    top_p=0.8,
-                    top_k=40,
-                    thinking_config=types.ThinkingConfig(thinking_budget=0)  # 禁用思考模式
-                )
+                config=config,
             )
             return response.text
-        
+
         except Exception as e:
             print(f"API 调用失败: {e}")
-            return None
+        return None
     
     def extract_json_from_response(self, response_text: str) -> List[Dict[str, str]]:
         """
@@ -179,7 +181,7 @@ Please begin."""
 API_KEY = os.getenv('GEMINI_API_KEY')  # 要提前配置 Gemini API 密钥
 STOCK_CODE = "AAPL.O"
 QUARTER = "Q2"
-YEAR = 2025
+YEAR = 2021
 
 # 创建分析器实例
 analyzer = GeminiFinanceAnalyzer(API_KEY)

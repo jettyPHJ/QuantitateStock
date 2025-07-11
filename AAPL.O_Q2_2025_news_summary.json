@@ -1,10 +1,10 @@
 [
   {
     "event_type": "Positive",
-    "event_description": "Apple announced a significant expansion of its services division into new emerging markets, including the launch of Apple Pay and Apple Music in several Southeast Asian countries, aiming to broaden its recurring revenue streams."
+    "event_description": "Apple reported strong Q2 2025 financial results, with revenue reaching $95.4 billion, a 5% year-over-year increase, and diluted EPS of $1.65, up 8% year-over-year. Services revenue achieved a record high of $26.6 billion, growing 12% year-over-year, supported by over 1 billion paid subscriptions. [1, 3, 5, 8]"
   },
   {
     "event_type": "Negative",
-    "event_description": "The European Commission initiated a formal antitrust investigation into Apple's App Store policies regarding third-party payment systems, citing concerns over potential anti-competitive practices and market dominance."
+    "event_description": "Apple anticipates a $900 million impact on costs in the June quarter due to tariffs. [1, 3, 5, 6, 7, 8] This comes amidst renewed US-China trade tensions and concerns about Apple's reliance on China for both sales and production. [2, 6]"
   }
 ]
