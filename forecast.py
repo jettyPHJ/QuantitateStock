@@ -2,7 +2,7 @@ import torch
 import pandas as pd
 import numpy as np
 from MambaStock import MambaModel
-import data_set
+import data_process.data_set as data_set
 from openpyxl import load_workbook
 from openpyxl.styles import PatternFill, Alignment, Border, Side
 from openpyxl.utils import get_column_letter

@@ -5,7 +5,7 @@ from torch.utils.data import Dataset, DataLoader
 import numpy as np
 import matplotlib.pyplot as plt
 import random
-import data_set
+import data_process.data_set as data_set
 import os
 import MambaStock
 

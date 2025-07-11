@@ -1,7 +1,7 @@
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
-import data_set
+import data_process.data_set as data_set
 
 d_model = 128
 n_layers = 5

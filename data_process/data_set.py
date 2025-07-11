@@ -42,6 +42,8 @@ def get_excel_meta(file_path, exclude_companies = [], exclude_columns = []):
 
     return company_names, feature_columns
 
+company_names, feature_columns = get_excel_meta(file_path, exclude_companies, exclude_columns) #获取公司和评价指标
+
 # 读取excel数据
 def load_excel(file_path, company_names, feature_columns): 
     data_map = {}
@@ -57,6 +59,8 @@ def load_excel(file_path, company_names, feature_columns):
 
 def generate_synthetic_data(source:dict):
     """生成训练的财务数据"""
+    print('公司：',company_names)  # 输出公司名列表
+    print('指标：',feature_columns)  # 输出每个公司对应的特征列
     data = []
     
     for _, company_data in source.items():
@@ -111,12 +115,6 @@ def sigmoid_normalize(arr, scale=10.0):
     scaled = (arr - min_val) / (max_val - min_val + 1e-8)
     centered = (scaled - 0.5) * scale
     return 1 / (1 + np.exp(-centered))
-
-company_names, feature_columns = get_excel_meta(file_path, exclude_companies, exclude_columns) #获取公司和评价指标
-
-#打印公司和列名
-print('公司：',company_names)  # 输出公司名列表
-print('指标：',feature_columns)  # 输出每个公司对应的特征列
 
 def get_index(feature_name):
     """获取特征名称的索引"""

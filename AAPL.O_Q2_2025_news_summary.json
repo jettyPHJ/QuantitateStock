@@ -1,0 +1,10 @@
+[
+  {
+    "event_type": "Positive",
+    "event_description": "Apple announced a significant expansion of its services division into new emerging markets, including the launch of Apple Pay and Apple Music in several Southeast Asian countries, aiming to broaden its recurring revenue streams."
+  },
+  {
+    "event_type": "Negative",
+    "event_description": "The European Commission initiated a formal antitrust investigation into Apple's App Store policies regarding third-party payment systems, citing concerns over potential anti-competitive practices and market dominance."
+  }
+]

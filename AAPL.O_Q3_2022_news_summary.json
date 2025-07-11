@@ -1,0 +1,10 @@
+[
+  {
+    "event_type": "Positive",
+    "event_description": "Apple held its 'Far Out' event on September 7, 2022, where it unveiled the iPhone 14 series, new Apple Watch models (including Apple Watch Ultra), and updated AirPods Pro. The new products featured enhanced capabilities and design improvements."
+  },
+  {
+    "event_type": "Negative",
+    "event_description": "On September 14, 2022, Apple acknowledged a security vulnerability in iOS 15.6.1, iPadOS 15.6.1, and macOS Monterey 12.5.1, stating that the flaw 'may have been actively exploited.' The company released software updates to address the issue."
+  }
+]
