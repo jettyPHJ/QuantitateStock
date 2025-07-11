@@ -1,10 +1,10 @@
 [
   {
     "event_type": "Positive",
-    "event_description": "Apple reported record-breaking financial results for its fiscal Q2 2021 (ending March 27, 2021), with revenue of $89.6 billion, a 54% increase year-over-year, and quarterly earnings per diluted share of $1.40. All product categories and geographic segments saw strong double-digit growth, and the company announced a $90 billion increase to its share repurchase program and a 7% dividend increase. [3, 9, 11, 19]"
+    "event_description": "Apple reported record-breaking Q2 2021 financial results on April 28, 2021. The company posted $89.6 billion in revenue, a 54% increase year-over-year, and $23.6 billion in profit. This performance was driven by strong double-digit growth across all product categories, including iPhone, Mac, and iPad, and record services revenue."
   },
   {
     "event_type": "Negative",
-    "event_description": "The antitrust lawsuit brought by Epic Games against Apple, concerning Apple's App Store policies and in-app purchasing methods, proceeded to trial in May 2021. Epic Games challenged Apple's 30% revenue cut and restrictions on alternative payment systems. [12, 14, 18]"
+    "event_description": "During its Q2 2021 earnings call on April 28, 2021, Apple announced that it expected supply constraints to have a revenue impact of $3 billion to $4 billion in the subsequent June quarter. This was primarily anticipated to affect iPad and Mac sales."
   }
 ]

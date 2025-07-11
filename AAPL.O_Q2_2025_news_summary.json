@@ -1,10 +1,10 @@
 [
   {
     "event_type": "Positive",
-    "event_description": "Apple reported strong Q2 2025 financial results, with revenue reaching $95.4 billion, a 5% year-over-year increase, and diluted EPS of $1.65, up 8% year-over-year. Services revenue achieved a record high of $26.6 billion, growing 12% year-over-year, supported by over 1 billion paid subscriptions. [1, 3, 5, 8]"
+    "event_description": "Apple reported stronger-than-expected fiscal Q2 2025 results, with revenue of $95.4 billion, up 5% year-over-year, and diluted EPS of $1.65, up 8% year-over-year, setting a March quarter record. Services revenue reached a new all-time high of $26.6 billion, growing 12% year-over-year. The company also announced a $100 billion share repurchase program and increased its dividend by 4% to $0.26 per share."
   },
   {
     "event_type": "Negative",
-    "event_description": "Apple anticipates a $900 million impact on costs in the June quarter due to tariffs. [1, 3, 5, 6, 7, 8] This comes amidst renewed US-China trade tensions and concerns about Apple's reliance on China for both sales and production. [2, 6]"
+    "event_description": "Apple anticipates a $900 million increase in costs for the June quarter due to newly imposed tariffs, particularly from U.S. policy targeting Chinese imports. This tariff exposure relates to a 20% IEEPA-related tariff and an additional 125% tariff for certain product categories announced in April."
   }
 ]

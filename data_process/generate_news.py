@@ -1,14 +1,22 @@
+import re
 import json
 import os
 from typing import Dict, List
 from google import genai
 from google.genai import types
 
+
+# 配置参数
+STOCK_CODE = "AAPL.O"
+QUARTER = "Q2"
+YEAR = 2025
+
+API_KEY = os.getenv('GEMINI_API_KEY')  # 要提前配置 Gemini API 密钥
+
 class GeminiFinanceAnalyzer:
     def __init__(self, api_key: str):
         """
-        初始化 Gemini API 客户端
-        
+        初始化 Gemini API 客户端     
         Args:
             api_key: Google Gemini API 密钥
         """
@@ -18,13 +26,11 @@ class GeminiFinanceAnalyzer:
         
     def create_prompt(self, stock_code: str, quarter: str, year: int) -> str:
         """
-        创建分析提示词
-        
+        创建分析提示词   
         Args:
             stock_code: 股票代码 (如 NVDA.O)
             quarter: 季度 (如 Q2)
-            year: 年份 (如 2021)
-            
+            year: 年份 (如 2021) 
         Returns:
             格式化的提示词
         """
@@ -102,10 +108,8 @@ Please begin."""
     def extract_json_from_response(self, response_text: str) -> List[Dict[str, str]]:
         """
         从 API 响应中提取 JSON 数据
-        
         Args:
             response_text: Gemini API 响应文本
-            
         Returns:
             提取的事件列表
         """
@@ -115,19 +119,19 @@ Please begin."""
         
         try:
             # 尝试解析 JSON（可能包含在代码块中）
-            if "```json" in response_text:
-                json_start = response_text.find("```json") + 7
-                json_end = response_text.find("```", json_start)
-                json_text = response_text[json_start:json_end].strip()
-            elif "[" in response_text and "]" in response_text:
-                json_start = response_text.find("[")
-                json_end = response_text.rfind("]") + 1
-                json_text = response_text[json_start:json_end]
-            else:
-                json_text = response_text
+            match = re.search(r"```json\s*(.*?)\s*```", response_text, re.DOTALL)
+            if not match:
+                raise ValueError("未找到 JSON 内容")
+
+            json_str = match.group(1).strip()
             
             # 解析 JSON
-            events = json.loads(json_text)
+            events = json.loads(json_str)
+
+            # 清除每个 event_description 中的末尾引用标签
+            for e in events:
+                e["event_description"] = re.sub(r"\[\d+(,\s*\d+)*\]\s*$", "", e["event_description"]).strip()
+
             return events
             
         except json.JSONDecodeError as e:
@@ -176,12 +180,6 @@ Please begin."""
             json.dump(events, f, ensure_ascii=False, indent=2)
         print(f"结果已保存到 {filename}")
 
-
-# 配置参数
-API_KEY = os.getenv('GEMINI_API_KEY')  # 要提前配置 Gemini API 密钥
-STOCK_CODE = "AAPL.O"
-QUARTER = "Q2"
-YEAR = 2021
 
 # 创建分析器实例
 analyzer = GeminiFinanceAnalyzer(API_KEY)
