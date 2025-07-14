@@ -3,67 +3,53 @@ import random
 import numpy as np
 
 file_path = '机器学习数据源.xlsx'
-exclude_companies = ['英伟达','苹果']
-exclude_columns = ['时间','财务年']
+exclude_companies = ['英伟达','苹果'] # 训练数据中排除的公司
+exclude_columns = ['时间','财务年','股票代码'] # 不参与训练的列
 min_sample_size = 6 #超参数，但是至少为3
 
-def get_excel_meta(file_path, exclude_companies = [], exclude_columns = []):
-    if exclude_columns is None:
-        exclude_columns = []
-
+def get_excel_meta(file_path):
     # 读取 Excel 文件
     excel_data = pd.ExcelFile(file_path)
 
     company_names = excel_data.sheet_names
+    
+    #检查Excel所有sheet的列名是否一致
+    first_sheet = pd.read_excel(excel_data, sheet_name=company_names[0])
+    reference_columns = list(first_sheet.columns)
 
-    # 读取第一个表单的数据
-    df = excel_data.parse(company_names[0])
-
-    # 获取第一个表的列名
-    columns = df.columns.tolist()
-
-    # 清理列名：去掉末尾的空白字符
-    cleaned_columns = []
-
-    for col in columns:
-        col = col.strip()  # 去掉前后空格
-        if not col:  # 如果遇到空白列名，停止处理
-            break
-        if "Unnamed" in col:  # 检查列名是否包含“Unnamed”
-            break
-        cleaned_columns.append(col)
-
-    # 过滤掉需要排除的公司和列
-    company_names = [name for name in company_names if name not in exclude_companies]
-    columns_to_include = [col for col in cleaned_columns if col not in exclude_columns]
+    for sheet in company_names[1:]:
+        df = pd.read_excel(excel_data, sheet_name=sheet, nrows=0)  # 只读取列名
+        if list(df.columns) != reference_columns:
+            raise ValueError(f"列名不一致：'{sheet}' 与 '{company_names[0]}' 的列名不同")
 
     # 将第一个表单的特征列添加到 feature_columns (一维数组)
-    feature_columns = columns_to_include
+    feature_columns = reference_columns
 
     return company_names, feature_columns
 
-company_names, feature_columns = get_excel_meta(file_path, exclude_companies, exclude_columns) #获取公司和评价指标
+company_names, columns = get_excel_meta(file_path)
 
 # 读取excel数据
-def load_excel(file_path, company_names, feature_columns): 
+def load_excel(file_path, company_names, columns): 
     data_map = {}
-    for company_name in company_names:
+    for company_name in (c for c in company_names if c not in exclude_companies):
         df = pd.read_excel(file_path, sheet_name=company_name)
         
         # 提取存在的列
         data_map[company_name] = {}
-        for col in feature_columns:
-            if col in df.columns:
-                data_map[company_name][col] = df[col].to_numpy()
+        for col in columns:
+            data_map[company_name][col] = df[col].to_numpy()
     return data_map
+load_excel(file_path, company_names, columns)
 
-def generate_synthetic_data(source:dict):
+#TODO：生成归一化后的财务数据和新闻的特征向量
+def generate_synthetic_data(data_map:dict):
     """生成训练的财务数据"""
     print('公司：',company_names)  # 输出公司名列表
-    print('指标：',feature_columns)  # 输出每个公司对应的特征列
+    print('指标：')  # 输出每个公司对应的特征列
     data = []
     
-    for _, company_data in source.items():
+    for _, company_data in data_map.items():
         row_count = len(next(iter(company_data.values())))
         
         # 至少要足够数据才能构造训练样本
@@ -100,10 +86,12 @@ def generate_synthetic_data(source:dict):
                 sample.append(col_norm)
              # 组装 [seq_len, feature_dim]
             orin_data = np.stack(raw_data, axis=1)
-            features = np.stack(sample, axis=1)
+            finacial_features = np.stack(sample, axis=1)
+            news_features = []
             data.append({
                 'origin': orin_data,
-                'features': features,
+                'finacial_features': finacial_features,
+                'news_features':news_features,
                 'target': target
             })
             
@@ -119,6 +107,6 @@ def sigmoid_normalize(arr, scale=10.0):
 def get_index(feature_name):
     """获取特征名称的索引"""
     try:
-        return feature_columns.index(feature_name)
+        return columns.index(feature_name)
     except ValueError:
         raise ValueError(f"特征名称 '{feature_name}' 不在特征列中。")
