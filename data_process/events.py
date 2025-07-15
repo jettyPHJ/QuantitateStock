@@ -6,6 +6,11 @@ class NewsDBManager:
     def __init__(self, db_path="events.db"):
         self.conn = sqlite3.connect(db_path)
         self.cursor = self.conn.cursor()
+        
+        # 使用默认的 DELETE 模式（非 WAL）
+        self.cursor.execute("PRAGMA journal_mode=DELETE;")
+        # 强同步策略，确保每次写操作都落盘
+        self.cursor.execute("PRAGMA synchronous=FULL;")
 
     def __del__(self):
         self.conn.commit()
@@ -67,6 +72,7 @@ class NewsDBManager:
             print(f"成功写入 {stock_code} 的事件到数据库")
         except Exception as e:
             print(f"写入数据库失败：{e}")
+        self.conn.commit()
 
 
 def get_news_and_embedding(stock_code: str, quarter: str, year: int, db_manager: NewsDBManager):

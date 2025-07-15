@@ -1,11 +1,16 @@
 import pandas as pd
 import random
 import numpy as np
+import events
 
 file_path = '机器学习数据源.xlsx'
 exclude_companies = ['英伟达','苹果'] # 训练数据中排除的公司
 exclude_columns = ['时间','财务年','股票代码'] # 不参与训练的列
 min_sample_size = 6 #超参数，但是至少为3
+
+db = events.NewsDBManager("events.db")
+time_column = '时间'
+stock_code_column = '股票代码'
 
 def get_excel_meta(file_path):
     # 读取 Excel 文件
@@ -29,20 +34,45 @@ def get_excel_meta(file_path):
 
 company_names, columns = get_excel_meta(file_path)
 
-# 读取excel数据
+# 读取excel数据,生成财务map和新闻map
 def load_excel(file_path, company_names, columns): 
-    data_map = {}
+    data_map, news_map = {}, {}
     for company_name in (c for c in company_names if c not in exclude_companies):
         df = pd.read_excel(file_path, sheet_name=company_name)
         
-        # 提取存在的列
-        data_map[company_name] = {}
+        data_map[company_name], news_map[company_name] = {}, {}
+        # 生成data_map
         for col in columns:
-            data_map[company_name][col] = df[col].to_numpy()
-    return data_map
+            ser = df[col]
+            if col == time_column:
+                ser = pd.to_datetime(ser, errors='coerce')
+                # 按季度聚合并格式化成 2005Q1
+                ser = ser.dt.to_period('Q').astype(str)
+            data_map[company_name][col] = ser.to_numpy()
+        
+        # 获取公司股票代码
+        stock_code = data_map[company_name][stock_code_column][0].strip()
+        if not stock_code:
+            raise ValueError(f"{company_name}: stock_code 为空字符串")
+
+        # 构建 news_map：按季度获取 embedding
+        for time in data_map[company_name][time_column]:
+            if isinstance(time, str) and len(time) >= 5:
+                year = int(time[:4])
+                quarter = time[4:]
+                _, embedding = events.get_news_and_embedding(stock_code, quarter, year, db)
+                if embedding:  # 只记录成功获取的
+                    news_map[company_name][time] = embedding
+                else:
+                    print(f"未获取到 embedding：{company_name} - {time}")
+            else:
+                print(f"时间格式非法：{company_name} - {time}")    
+
+    return data_map, news_map
+
 load_excel(file_path, company_names, columns)
 
-#TODO：生成归一化后的财务数据和新闻的特征向量
+#TODO：针对财务数据做归一化，构建训练数据集
 def generate_synthetic_data(data_map:dict):
     """生成训练的财务数据"""
     print('公司：',company_names)  # 输出公司名列表

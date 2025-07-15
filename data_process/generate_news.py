@@ -42,19 +42,16 @@ Stock code: {stock_code}
 Period: {year} {months}
 
 Requirements:
-- Output must be in English.
-- Identify one distinct publicly reported event generally perceived as positive news for the company, and one distinct publicly reported event generally perceived as negative news for the company. (Total 2 events).
-- A brief, objective summary of the news event itself, in under 150 words. Focus on what happened, not its presumed stock price effect.
+- Output must be in English and written as plain text in a clear key-value format.
+- Must contain one positive news event and one negative news event.
+- Each event should be written in one sentence under 100 words.
 - Ignore trivial, repetitive, or irrelevant information.
 - Descriptions must be strictly factual, objective, and free from emotional, promotional, or speculative language. Do not infer direct stock price causality.
 - The output should be suitable for semantic embedding as an input to a stock price prediction model.
-
 Example Format:
-
-Positive : The company announced the launch of its new flagship product, receiving positive initial reviews from technology critics;
-Negative : Regulatory authorities in Country X initiated an investigation into the company's past accounting practices;
-
-Please begin."""
+  "Positive": "(description...under 100 words)",
+  "Negative": "(description...under 100 words)"
+Please begin the summary."""
         
         return prompt
     
@@ -69,11 +66,11 @@ Please begin."""
             # 配置生成设置，包括联网搜索
             config = types.GenerateContentConfig(
                 temperature=0.1,
-                max_output_tokens=2048,
+                max_output_tokens=1024,
                 top_p=0.8,
                 top_k=40,
                 tools=[grounding_tool],
-                thinking_config=types.ThinkingConfig(thinking_budget=0)
+                thinking_config=types.ThinkingConfig(thinking_budget=5)
             )
 
             # 发送请求
