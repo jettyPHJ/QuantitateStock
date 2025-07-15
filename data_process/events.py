@@ -1,6 +1,7 @@
 import sqlite3
 import generate_news
 import json
+import time
 
 class NewsDBManager:
     def __init__(self, db_path="events.db"):
@@ -84,6 +85,7 @@ def get_news_and_embedding(stock_code: str, quarter: str, year: int, db_manager:
 
     # 否则调用 API
     print(f"正在获取 {stock_code} 在 {quarter} {year} 的新闻...")
+    time.sleep(2)
     try:
         news_text = generate_news.analyzer.get_company_news(stock_code, quarter, year)
         if not news_text:

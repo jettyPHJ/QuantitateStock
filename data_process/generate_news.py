@@ -42,16 +42,15 @@ Stock code: {stock_code}
 Period: {year} {months}
 
 Requirements:
-- Output must be in English and written as plain text in a clear key-value format.
 - Must contain one positive news event and one negative news event.
-- Each event should be written in one sentence under 100 words.
+- Each event should be written under 100 words.
 - Ignore trivial, repetitive, or irrelevant information.
 - Descriptions must be strictly factual, objective, and free from emotional, promotional, or speculative language. Do not infer direct stock price causality.
 - The output should be suitable for semantic embedding as an input to a stock price prediction model.
 Example Format:
-  "Positive": "(description...under 100 words)",
+  "Positive": "(description...under 100 words)"
   "Negative": "(description...under 100 words)"
-Please begin the summary."""
+"""
         
         return prompt
     
@@ -66,7 +65,7 @@ Please begin the summary."""
             # 配置生成设置，包括联网搜索
             config = types.GenerateContentConfig(
                 temperature=0.1,
-                max_output_tokens=1024,
+                max_output_tokens=2048,
                 top_p=0.8,
                 top_k=40,
                 tools=[grounding_tool],
