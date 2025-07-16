@@ -80,7 +80,7 @@ def get_news_and_embedding(stock_code: str, quarter: str, year: int, db_manager:
     # 尝试从数据库获取
     news_text, embedding = db_manager.fetch_news_from_db(stock_code, year, quarter)
     if news_text and embedding:
-        print(f"已在数据库中找到 {stock_code} {quarter} {year} 的记录，直接返回")
+        # print(f"已在数据库中找到 {stock_code} {quarter} {year} 的记录，直接返回")
         return news_text, embedding
 
     # 否则调用 API

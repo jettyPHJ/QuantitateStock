@@ -11,6 +11,7 @@ min_sample_size = 6 #超参数，但是至少为3
 db = events.NewsDBManager("events.db")
 time_column = '时间'
 stock_code_column = '股票代码'
+target_column = '平均股价'
 
 def get_excel_meta(file_path):
     # 读取 Excel 文件
@@ -28,9 +29,9 @@ def get_excel_meta(file_path):
             raise ValueError(f"列名不一致：'{sheet}' 与 '{company_names[0]}' 的列名不同")
 
     # 将第一个表单的特征列添加到 feature_columns (一维数组)
-    feature_columns = reference_columns
+    columns = reference_columns
 
-    return company_names, feature_columns
+    return company_names, columns
 
 company_names, columns = get_excel_meta(file_path)
 
@@ -70,16 +71,20 @@ def load_excel(file_path, company_names, columns):
 
     return data_map, news_map
 
-load_excel(file_path, company_names, columns)
+def get_feature_columns(columns):
+    """获取参与训练的特征列"""
+    feature_columns = [col for col in columns if col not in exclude_columns]
+    return feature_columns
 
 #TODO：针对财务数据做归一化，构建训练数据集
-def generate_synthetic_data(data_map:dict):
+def generate_synthetic_data(data_map:dict, news_map:dict):
     """生成训练的财务数据"""
-    print('公司：',company_names)  # 输出公司名列表
-    print('指标：')  # 输出每个公司对应的特征列
+    feature_columns = get_feature_columns(columns)
+    print('公司：', company_names)  # 输出公司名列表
+    print('特征列：', feature_columns)  # 输出参与训练的特征列
     data = []
     
-    for _, company_data in data_map.items():
+    for company_name, company_data in data_map.items():
         row_count = len(next(iter(company_data.values())))
         
         # 至少要足够数据才能构造训练样本
@@ -88,8 +93,6 @@ def generate_synthetic_data(data_map:dict):
         
         # 每个公司生成的样本数量
         sample_size = int(row_count // 1.5)
-        
-        feature_names = list(company_data.keys())
 
         for _ in range(sample_size):
             # 随机决定子序列长度
@@ -99,29 +102,34 @@ def generate_synthetic_data(data_map:dict):
             max_start = row_count - seq_len - 1
             start_idx = random.randint(0, max_start)
 
-            # 提取每一列在指定范围的数据
+            # 提取财报数据集中每一列在指定范围的数据
             raw_data = []
             sample = []
             target = 0.0
-            for col_name in feature_names:               
+            for col_name in feature_columns:               
                 # 提取子序列
                 col_data = company_data[col_name][start_idx : start_idx + seq_len]
                 col_arr = np.array(col_data, dtype=float) 
-                # 如果是目标列 '平均股价'，在同样的 min-max 体系下计算 target
-                if col_name == '平均股价':
+                # 如果是目标列，在同样的 min-max 体系下计算 target
+                if col_name == target_column:
                     target = company_data[col_name][start_idx + seq_len]
                 # 对原始数据使用 Sigmoid 归一化
                 raw_data.append(col_data)
                 col_norm = sigmoid_normalize(col_arr) 
                 sample.append(col_norm)
-             # 组装 [seq_len, feature_dim]
+            # 组装 [seq_len, feature_dim]
             orin_data = np.stack(raw_data, axis=1)
             finacial_features = np.stack(sample, axis=1)
-            news_features = []
+
+            # 提取前一期的新闻和要预测期的新闻向量
+            t1, t2 = company_data[time_column][start_idx + seq_len - 1 : start_idx + seq_len + 1]
+            e1, e2 = news_map[company_name][t1], news_map[company_name][t2]
+            news_features = [e1, e2]
+        
             data.append({
                 'origin': orin_data,
                 'finacial_features': finacial_features,
-                'news_features':news_features,
+                'news_features': news_features,
                 'target': target
             })
             
@@ -140,3 +148,7 @@ def get_index(feature_name):
         return columns.index(feature_name)
     except ValueError:
         raise ValueError(f"特征名称 '{feature_name}' 不在特征列中。")
+
+# 测试
+# data_map, news_map = load_excel(file_path, company_names, columns)  
+# generate_synthetic_data(data_map, news_map)
