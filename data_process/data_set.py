@@ -1,7 +1,7 @@
 import pandas as pd
 import random
 import numpy as np
-import events
+import news_data.events_data as events
 
 file_path = '机器学习数据源.xlsx'
 exclude_companies = ['英伟达','苹果'] # 训练数据中排除的公司
@@ -76,7 +76,7 @@ def get_feature_columns(columns):
     feature_columns = [col for col in columns if col not in exclude_columns]
     return feature_columns
 
-#TODO：针对财务数据做归一化，构建训练数据集
+#针对财务数据做归一化，收集新闻特征向量，构建训练数据集
 def generate_synthetic_data(data_map:dict, news_map:dict):
     """生成训练的财务数据"""
     feature_columns = get_feature_columns(columns)
@@ -121,11 +121,10 @@ def generate_synthetic_data(data_map:dict, news_map:dict):
             orin_data = np.stack(raw_data, axis=1)
             finacial_features = np.stack(sample, axis=1)
 
-            # 提取前一期的新闻和要预测期的新闻向量
-            t1, t2 = company_data[time_column][start_idx + seq_len - 1 : start_idx + seq_len + 1]
-            e1, e2 = news_map[company_name][t1], news_map[company_name][t2]
-            news_features = [e1, e2]
-        
+            # 提取前期的新闻和要预测期的新闻向量
+            times = company_data[time_column][start_idx : start_idx + seq_len + 1]
+            news_features = [news_map[company_name][t] for t in times]
+
             data.append({
                 'origin': orin_data,
                 'finacial_features': finacial_features,

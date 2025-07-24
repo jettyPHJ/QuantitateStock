@@ -154,14 +154,13 @@ class MambaModel(nn.Module):
             x = mamba_layer(x)
             x = layer_norm(x + residual)
 
-        # 池化：考虑 mask
+        # TODO：应该改成可学习的池化 ，最好封装成模块，对比mean pooling，last-step pooling，attention pooling，
         if lengths is not None:
             mask = torch.arange(seq_len, device=x.device).unsqueeze(0) < lengths.unsqueeze(1)
             mask = mask.unsqueeze(-1).float()  # (batch, seq_len, 1)
 
             x_masked = x * mask
-            valid_counts = mask.sum(dim=1) + 1e-8
-            x_pooled = x_masked.sum(dim=1) / valid_counts
+            x_pooled = x_masked.sum(dim=1) / (lengths.unsqueeze(1)+ 1e-8)
         else:
             x_pooled = x.mean(dim=1)
 

@@ -1,0 +1,25 @@
+# 财报数据
+营业收入(单季): wgsd_qfa_sales_oper
+毛利率(单季): wgsd_qfa_grossprofitmargin
+净利率(单季): wgsd_qfa_netprofitmargin
+净资产收益率(单季): wgsd_qfa_roe
+总资产收益率(单季): wgsd_qfa_roa
+营业收入(TTM): or_ttm3
+EBITDA(TTM): ebitda2_ttm2
+经营活动现金流(TTM): operatecashflow_ttm3
+毛利率(TTM): grossprofitmargin_ttm3
+净利率(TTM): netprofitmargin_ttm3
+净资产收益率(TTM): roe_ttm3
+总资产收益率(TTM): roa_ttm2
+资产负债率: wgsd_debttoassets
+总资产周转率: wgsd_assetsturn
+
+# 股票市场数据
+区间成交均价: pq_avgprice2
+区间日均换手率: avg_turn_per
+区间最高价: high_per
+区间最低价: low_per
+
+# 板块数据
+板块涨跌幅: sec_pq_pct_chg_tmc_wavg
+板块日均换手率: sec_pq_avgturn_avg
