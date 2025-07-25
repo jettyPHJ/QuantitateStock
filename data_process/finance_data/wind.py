@@ -24,6 +24,7 @@ block_ratio = ["板块涨跌幅", "板块日均换手率"]
 class BlockCode(Enum):
     US_CHIP = ("[US]芯片", "1000041891000000")
     US_SEMI = ("[US]半导体", "1000041892000000")
+    US_AUTO = ("[US]无人驾驶", "1000041895000000")
 
     def __init__(self, desc: str, code: str):
         self.desc = desc
@@ -86,7 +87,7 @@ class WindFinancialDataFetcher:
 
         query_end_date = datetime.now().date() + timedelta(days=500)
         outdata = check_wind_data(
-            w.wsd(self.stock_code, "stm_issuingdate", "2024-01-01", query_end_date, "Period=Q;Days=Alldays"))
+            w.wsd(self.stock_code, "stm_issuingdate", "2005-01-01", query_end_date, "Period=Q;Days=Alldays"))
         pub_dates_raw = outdata.Data[0]
         report_dates_raw = outdata.Times
 
