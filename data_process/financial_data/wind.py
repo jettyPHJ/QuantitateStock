@@ -2,17 +2,33 @@ from WindPy import w
 from datetime import datetime, date, timedelta
 import yaml
 import os
+from enum import Enum
+import time
 
 # 财报数据
-value_features_cn = ["营业收入(单季)", "营业收入(TTM)", "EBITDA(TTM)", "经营活动现金流(TTM)"]
-ratio_features_cn = [
+finance_value = ["营业收入(单季)", "营业收入(TTM)", "EBITDA(TTM)", "经营活动现金流(TTM)"]
+finance_ratio = [
     "毛利率(单季)", "毛利率(TTM)", "净利率(单季)", "净利率(TTM)", "净资产收益率(单季)", "净资产收益率(TTM)", "总资产收益率(单季)", "总资产收益率(TTM)", "资产负债率", "总资产周转率"
 ]
+
 # 股市数据
-stock_feature_cn = ["区间成交均价", "区间日均换手率", "区间最高价", "区间最低价"]
+stock_value = ["区间成交均价", "区间最高价", "区间最低价"]
+stock_ratio = ["区间日均换手率"]
 
 # 板块数据
-block_feature_cn = ["板块涨跌幅", "板块日均换手率"]
+block_value = []
+block_ratio = ["板块涨跌幅", "板块日均换手率"]
+
+
+# 板块枚举值
+class BlockCode(Enum):
+    US_CHIP = ("[US]芯片", "1000041891000000")
+    US_SEMI = ("[US]半导体", "1000041892000000")
+
+    def __init__(self, desc: str, code: str):
+        self.desc = desc
+        self.code = code
+
 
 base_dir = os.path.dirname(__file__)
 feature_map_path = os.path.join(base_dir, "feature_map.yaml")
@@ -31,15 +47,15 @@ def translate_to_chinese_fields(wind_field_list: list[str]) -> list[str]:
     return [REVERSE_MAP.get(f.lower(), f) for f in wind_field_list]
 
 
-# 财报数据默认配置
-features_wind = ",".join(translate_to_wind_fields(value_features_cn + ratio_features_cn))
+# 财报数据配置
+features_wind = ",".join(translate_to_wind_fields(finance_value + finance_ratio))
 financial_options = "unit=1;rptType=1;currencyType=;Period=Q;Days=Alldays;PriceAdj=F"
 
-# 股价数据默认配置
-stock_wind = ",".join(translate_to_wind_fields(stock_feature_cn))
+# 股价数据配置
+stock_wind = ",".join(translate_to_wind_fields(stock_value + stock_ratio))
 
-# 板块数据默认配置
-block_wind = ",".join(translate_to_wind_fields(block_feature_cn))
+# 板块数据配置
+block_wind = ",".join(translate_to_wind_fields(block_value + block_ratio))
 
 
 def check_wind_data(wind_data, context=""):
@@ -58,10 +74,10 @@ def build_translated_data_map(wind_fields: list[str], values: list[list]) -> dic
 
 class WindFinancialDataFetcher:
 
-    def __init__(self, stock_code: str, block_code: str):
+    def __init__(self, stock_code: str, block_code: BlockCode):
         w.start()
         self.stock_code = stock_code
-        self.block_code = block_code
+        self.block_code = block_code.code
         self._report_dates = None
 
     def get_report_dates(self):
@@ -69,7 +85,8 @@ class WindFinancialDataFetcher:
             return self._report_dates
 
         query_end_date = datetime.now().date() + timedelta(days=500)
-        outdata = check_wind_data(w.wsd(self.stock_code, "stm_issuingdate", "2005-01-01", query_end_date, self.options))
+        outdata = check_wind_data(
+            w.wsd(self.stock_code, "stm_issuingdate", "2005-01-01", query_end_date, "Period=Q;Days=Alldays"))
         pub_dates_raw = outdata.Data[0]
         report_dates_raw = outdata.Times
 
@@ -110,7 +127,7 @@ class WindFinancialDataFetcher:
     def get_finance_data(self, rpt_date: str):
         date = int(rpt_date.replace("-", ""))
 
-        wss_result = check_wind_data(w.wss(self.stock_code, features_wind, f"unit=1;rptDate={date};rptType=1"))
+        wss_result = check_wind_data(w.wss(self.stock_code, features_wind, f"unit=1;rptDate={date};rptType=1;currencyType="))
 
         finance_data_map = build_translated_data_map(wss_result.Fields, wss_result.Data)
 
@@ -140,11 +157,56 @@ class WindFinancialDataFetcher:
 
         return block_data_map
 
+    # 获取所有信息
+    def get_data(self):
+        report_dates, pub_dates = self.get_report_dates()
+
+        all_data = []
+
+        for i in range(1, len(report_dates)):
+            report_date = report_dates[i]
+            pub_date = pub_dates[i]
+            prev_pub_date = pub_dates[i - 1]  # 上一期发布日期
+
+            start_day = prev_pub_date
+            end_day = pub_date
+
+            try:
+                finance_data = self.get_finance_data(report_date)
+            except Exception as e:
+                print(f"[Error] 获取财报数据失败：{report_date} -> {e}")
+                finance_data = {}
+
+            try:
+                stock_data = self.get_stock_data(start_day, end_day)
+            except Exception as e:
+                print(f"[Error] 获取股价数据失败：{start_day} ~ {end_day} -> {e}")
+                stock_data = {}
+
+            try:
+                block_data = self.get_block_data(start_day, end_day)
+            except Exception as e:
+                print(f"[Error] 获取板块数据失败：{start_day} ~ {end_day} -> {e}")
+                block_data = {}
+
+            merged = {
+                "报告期": report_date,
+                "发布日期": pub_date,
+                "统计开始日": start_day,
+                "统计结束日": end_day,
+                **finance_data,
+                **stock_data,
+                **block_data
+            }
+
+            all_data.append(merged)
+            time.sleep(0.05)  # 每次请求间隔0.05秒
+
+        return all_data
+
 
 # --------------------- 测试入口 ---------------------
 if __name__ == "__main__":
-    fetcher = WindFinancialDataFetcher(stock_code="NVDA.O", block_code="1000041891000000")
-
-    # fetcher.get_finance_data("2025-03-31")
-
-    fetcher.get_block_data("2025-06-24", "2025-07-20")
+    fetcher = WindFinancialDataFetcher(stock_code="NVDA.O", block_code=BlockCode.US_CHIP)
+    data = fetcher.get_data()
+    print(data)
