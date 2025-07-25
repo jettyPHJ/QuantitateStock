@@ -86,7 +86,7 @@ class WindFinancialDataFetcher:
 
         query_end_date = datetime.now().date() + timedelta(days=500)
         outdata = check_wind_data(
-            w.wsd(self.stock_code, "stm_issuingdate", "2005-01-01", query_end_date, "Period=Q;Days=Alldays"))
+            w.wsd(self.stock_code, "stm_issuingdate", "2024-01-01", query_end_date, "Period=Q;Days=Alldays"))
         pub_dates_raw = outdata.Data[0]
         report_dates_raw = outdata.Times
 

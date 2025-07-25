@@ -1,0 +1,13 @@
+# 忽略数据库
+*.db
+
+# 忽略临时数据文件
+*.tmp
+*.log
+
+# 忽略 VSCode 配置
+.vscode/
+
+# 忽略 Python 缓存
+__pycache__/
+*.pyc
