@@ -12,8 +12,8 @@ finance_ratio = [
 ]
 
 # 股市数据
-stock_value = ["区间成交均价", "区间最高价", "区间最低价"]
-stock_ratio = ["区间日均换手率"]
+stock_value = ["区间日均收盘价", "区间最高收盘价", "区间最高收盘价日期", "区间最低收盘价", "区间最低收盘价日期"]
+stock_ratio = ["区间涨跌幅", "区间日均换手率"]
 
 # 板块数据
 block_value = []
@@ -50,7 +50,6 @@ def translate_to_chinese_fields(wind_field_list: list[str]) -> list[str]:
 
 # 财报数据配置
 features_wind = ",".join(translate_to_wind_fields(finance_value + finance_ratio))
-financial_options = "unit=1;rptType=1;currencyType=;Period=Q;Days=Alldays;PriceAdj=F"
 
 # 股价数据配置
 stock_wind = ",".join(translate_to_wind_fields(stock_value + stock_ratio))
@@ -67,10 +66,19 @@ def check_wind_data(wind_data, context=""):
 
 def build_translated_data_map(wind_fields: list[str], values: list[list]) -> dict:
     """
-    将 Wind 字段名及对应数据转换为中文字段 → 值 的映射。
+    将 Wind 字段名及对应数据转换为 中文字段 → 值 的映射。
+    如果值是 datetime/date类型,则转为 'yyyy-mm-dd' 字符串。
     """
     chinese_fields = translate_to_chinese_fields(wind_fields)
-    return {ch_name: val[0] if isinstance(val, list) and len(val) == 1 else val for ch_name, val in zip(chinese_fields, values)}
+    result = {}
+
+    for ch_name, val in zip(chinese_fields, values):
+        v = val[0] if isinstance(val, list) and len(val) == 1 else val
+        if isinstance(v, (datetime, date)):
+            v = v.strftime("%Y-%m-%d")
+        result[ch_name] = v
+
+    return result
 
 
 class WindFinancialDataFetcher:
@@ -138,8 +146,15 @@ class WindFinancialDataFetcher:
     def get_stock_data(self, start_day: str, end_day: str):
         start_day_int, end_day_int = int(start_day.replace("-", "")), int(end_day.replace("-", ""))
 
-        wss_result = check_wind_data(w.wss(self.stock_code, stock_wind,
-                                           f"startDate={start_day_int};endDate={end_day_int};priceAdj=F"),
+        # 提取股票交易天数
+        wss_result = check_wind_data(w.wss(self.stock_code, "trade_days_per",
+                                           f"startDate={start_day_int};endDate={end_day_int}"),
+                                     context="get_data_num")
+        [[trade_days]] = wss_result.Data
+
+        wss_result = check_wind_data(w.wss(
+            self.stock_code, stock_wind,
+            f"ndays=-{trade_days};tradeDate={end_day_int};startDate={start_day_int};endDate={end_day_int};priceAdj=F"),
                                      context="get_stock_data")
 
         stock_data_map = build_translated_data_map(wss_result.Fields, wss_result.Data)
@@ -174,34 +189,27 @@ class WindFinancialDataFetcher:
 
             try:
                 finance_data = self.get_finance_data(report_date)
-            except Exception as e:
-                print(f"[Error] 获取财报数据失败：{report_date} -> {e}")
-                finance_data = {}
-
-            try:
                 stock_data = self.get_stock_data(start_day, end_day)
-            except Exception as e:
-                print(f"[Error] 获取股价数据失败：{start_day} ~ {end_day} -> {e}")
-                stock_data = {}
-
-            try:
                 block_data = self.get_block_data(start_day, end_day)
+
+                merged = {
+                    "报告期": report_date,
+                    "发布日期": pub_date,
+                    "统计开始日": start_day,
+                    "统计结束日": end_day,
+                    **finance_data,
+                    **stock_data,
+                    **block_data
+                }
+
+                all_data.append(merged)
+
             except Exception as e:
-                print(f"[Error] 获取板块数据失败：{start_day} ~ {end_day} -> {e}")
-                block_data = {}
+                print(f"[Warning] 数据抓取失败：报告期 {report_date} -> {e}")
 
-            merged = {
-                "报告期": report_date,
-                "发布日期": pub_date,
-                "统计开始日": start_day,
-                "统计结束日": end_day,
-                **finance_data,
-                **stock_data,
-                **block_data
-            }
-
-            all_data.append(merged)
-            time.sleep(0.05)  # 每次请求间隔0.05秒
+            finally:
+                # 成功或失败都 sleep
+                time.sleep(0.05)
 
         return all_data
 

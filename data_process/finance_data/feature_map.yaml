@@ -15,10 +15,15 @@ EBITDA(TTM): ebitda2_ttm2
 总资产周转率: wgsd_assetsturn
 
 # 股票市场数据
-区间成交均价: pq_avgprice2
-区间日均换手率: avg_turn_per
+区间日均收盘价: avgclose_per
+区间最高收盘价: max_close_per
+区间最高收盘价日期: max_close_date_per
+区间最低收盘价: min_close_per
+区间最低收盘价日期: min_close_date_per
 区间最高价: high_per
 区间最低价: low_per
+区间涨跌幅: pct_chg_per
+区间日均换手率: avg_turn_per
 
 # 板块数据
 板块涨跌幅: sec_pq_pct_chg_tmc_wavg
