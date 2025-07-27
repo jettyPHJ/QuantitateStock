@@ -2,10 +2,12 @@ import sqlite3
 import os
 import wind as wd
 
+BlockCode = wd.BlockCode
+
 
 class FinanceDBManager:
 
-    def __init__(self, block_code: wd.BlockCode, db_dir="db"):
+    def __init__(self, block_code: BlockCode, db_dir="db"):
         self.block_code = block_code
         db_file = f"{self.block_code.name}.db"
         self.db_path = os.path.join(os.path.dirname(__file__), db_dir, db_file)
@@ -65,7 +67,7 @@ class FinanceDBManager:
             print(f"[写入失败] {stock_code} ({self.block_code.name}) - {record.get('报告期')}，错误：{e}")
         self.conn.commit()
 
-    def load_or_fetch_data(self, stock_code: str):
+    def fetch_stock_data(self, stock_code: str):
         table_name = self._get_table_name(stock_code)
 
         # 检查表是否存在
@@ -91,15 +93,26 @@ class FinanceDBManager:
         data = [dict(zip(col_names, row)) for row in rows]
         return data
 
+    def fetch_block_data(self):
+        """
+        获取整个板块下所有股票的财务数据，并以 {stock_code: [record_dict, ...]} 的形式返回。
+        """
+        result = {}
+
+        # 获取板块下所有股票代码
+        stock_codes = wd.get_stock_codes(self.block_code)
+
+        for stock_code in stock_codes:
+            try:
+                data = self.fetch_stock_data(stock_code)
+                result[stock_code] = data
+            except Exception as e:
+                print(f"[错误] 获取 {stock_code} 财务数据失败：{e}")
+
+        return result
+
 
 # --------------------- 测试入口 ---------------------
 if __name__ == "__main__":
-    stock_code = "TSLA.O"
-    block_code = wd.BlockCode.US_AUTO
-
-    db = FinanceDBManager(block_code=block_code)
-    data = db.load_or_fetch_data(stock_code)
-
-    print(f"共获取 {len(data)} 条数据：")
-    for row in data[:2]:
-        print(row)
+    db = FinanceDBManager(block_code=BlockCode.US_CHIP)
+    db.fetch_block_data()

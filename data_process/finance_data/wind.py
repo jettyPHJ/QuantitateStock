@@ -5,6 +5,8 @@ import os
 from enum import Enum
 import time
 
+w.start()
+
 # 财报数据
 finance_value = ["营业收入(单季)", "营业收入(TTM)", "EBITDA(TTM)", "经营活动现金流(TTM)"]
 finance_ratio = [
@@ -84,7 +86,6 @@ def build_translated_data_map(wind_fields: list[str], values: list[list]) -> dic
 class WindFinancialDataFetcher:
 
     def __init__(self, stock_code: str, block_code: BlockCode):
-        w.start()
         self.stock_code = stock_code
         self.block_code = block_code.code
         self._report_dates = None
@@ -94,8 +95,9 @@ class WindFinancialDataFetcher:
             return self._report_dates
 
         query_end_date = datetime.now().date() + timedelta(days=500)
-        outdata = check_wind_data(
-            w.wsd(self.stock_code, "stm_issuingdate", "2005-01-01", query_end_date, "Period=Q;Days=Alldays"))
+        outdata = check_wind_data(w.wsd(self.stock_code, "stm_issuingdate", "2005-01-01", query_end_date,
+                                        "Period=Q;Days=Alldays"),
+                                  context=f"stock_code:{self.stock_code},获取日期序列")
         pub_dates_raw = outdata.Data[0]
         report_dates_raw = outdata.Times
 
@@ -136,7 +138,8 @@ class WindFinancialDataFetcher:
     def get_finance_data(self, rpt_date: str):
         date = int(rpt_date.replace("-", ""))
 
-        wss_result = check_wind_data(w.wss(self.stock_code, features_wind, f"unit=1;rptDate={date};rptType=1;currencyType="))
+        wss_result = check_wind_data(w.wss(self.stock_code, features_wind, f"unit=1;rptDate={date};rptType=1;currencyType="),
+                                     context=f"stock_code:{self.stock_code},获取财报数据")
 
         finance_data_map = build_translated_data_map(wss_result.Fields, wss_result.Data)
 
@@ -149,13 +152,13 @@ class WindFinancialDataFetcher:
         # 提取股票交易天数
         wss_result = check_wind_data(w.wss(self.stock_code, "trade_days_per",
                                            f"startDate={start_day_int};endDate={end_day_int}"),
-                                     context="get_data_num")
+                                     context=f"stock_code:{self.stock_code},获取交易天数")
         [[trade_days]] = wss_result.Data
 
         wss_result = check_wind_data(w.wss(
             self.stock_code, stock_wind,
             f"ndays=-{trade_days};tradeDate={end_day_int};startDate={start_day_int};endDate={end_day_int};priceAdj=F"),
-                                     context="get_stock_data")
+                                     context=f"stock_code:{self.stock_code},获取区间股价统计信息")
 
         stock_data_map = build_translated_data_map(wss_result.Fields, wss_result.Data)
 
@@ -167,13 +170,13 @@ class WindFinancialDataFetcher:
 
         wsee_result = check_wind_data(w.wsee(self.block_code, block_wind,
                                              f"startDate={start_day_int};endDate={end_day_int};DynamicTime=1"),
-                                      context="get_block_data")
+                                      context=f"stock_code:{self.stock_code},获取板块数据")
 
         block_data_map = build_translated_data_map(wsee_result.Fields, wsee_result.Data)
 
         return block_data_map
 
-    # 获取所有信息
+    # 获取单支股票所有信息
     def get_data(self):
         report_dates, pub_dates = self.get_report_dates()
 
@@ -214,8 +217,19 @@ class WindFinancialDataFetcher:
         return all_data
 
 
+# 获取指定板块所有的股票代码
+def get_stock_codes(block_code: BlockCode):
+    wset_result = check_wind_data(w.wset("sectorconstituent", f"date={datetime.now().date()};sectorid={block_code.code}"),
+                                  context=f"获取 {block_code.desc} 板块股票")
+
+    result_list = build_translated_data_map(wset_result.Fields, wset_result.Data)["wind_code"]
+
+    return result_list
+
+
 # --------------------- 测试入口 ---------------------
 if __name__ == "__main__":
     fetcher = WindFinancialDataFetcher(stock_code="NVDA.O", block_code=BlockCode.US_CHIP)
     data = fetcher.get_data()
     print(data)
+    print(get_stock_codes(BlockCode.US_CHIP))
