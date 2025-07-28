@@ -4,18 +4,17 @@ import yaml
 import os
 from enum import Enum
 import time
+import math
 
 w.start()
 
 # 财报数据
-finance_value = ["营业收入(单季)", "营业收入(TTM)", "EBITDA(TTM)", "经营活动现金流(TTM)"]
-finance_ratio = [
-    "毛利率(单季)", "毛利率(TTM)", "净利率(单季)", "净利率(TTM)", "净资产收益率(单季)", "净资产收益率(TTM)", "总资产收益率(单季)", "总资产收益率(TTM)", "资产负债率", "总资产周转率"
-]
+finance_value = ["营业收入(单季)", "营业收入(TTM)", "经营活动现金流(TTM)"]
+finance_ratio = ["毛利率(单季)", "毛利率(TTM)", "净利率(单季)", "净利率(TTM)", "总资产收益率(单季)", "总资产收益率(TTM)", "资产负债率", "总资产周转率"]
 
 # 股市数据
 stock_value = ["区间日均收盘价", "区间最高收盘价", "区间最高收盘价日期", "区间最低收盘价", "区间最低收盘价日期"]
-stock_ratio = ["区间涨跌幅", "区间日均换手率"]
+stock_ratio = ["区间振幅", "区间日均换手率"]
 
 # 板块数据
 block_value = []
@@ -69,15 +68,20 @@ def check_wind_data(wind_data, context=""):
 def build_translated_data_map(wind_fields: list[str], values: list[list]) -> dict:
     """
     将 Wind 字段名及对应数据转换为 中文字段 → 值 的映射。
-    如果值是 datetime/date类型,则转为 'yyyy-mm-dd' 字符串。
+    如果值是 datetime/date 类型，则转为 'yyyy-mm-dd' 字符串。
+    空值和 NaN 将被转换为空字符串。
     """
     chinese_fields = translate_to_chinese_fields(wind_fields)
     result = {}
 
     for ch_name, val in zip(chinese_fields, values):
         v = val[0] if isinstance(val, list) and len(val) == 1 else val
-        if isinstance(v, (datetime, date)):
+
+        if v is None or (isinstance(v, float) and math.isnan(v)):
+            v = ""
+        elif isinstance(v, (datetime, date)):
             v = v.strftime("%Y-%m-%d")
+
         result[ch_name] = v
 
     return result

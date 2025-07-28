@@ -24,6 +24,7 @@ EBITDA(TTM): ebitda2_ttm2
 区间最低价: low_per
 区间涨跌幅: pct_chg_per
 区间日均换手率: avg_turn_per
+区间振幅: swing_per
 
 # 板块数据
 板块涨跌幅: sec_pq_pct_chg_tmc_wavg

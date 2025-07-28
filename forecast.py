@@ -14,7 +14,7 @@ model_path = 'best_mamba_model.pth'
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
 # 获取特征维度
-company_names, feature_columns = data_set.get_excel_meta(file_path,exclude_columns = data_set.exclude_columns)
+company_names, feature_columns = data_set.get_excel_meta(file_path, exclude_columns=data_set.exclude_columns)
 
 # 验证测试数据和训练数据的feature_columns是否相同
 if feature_columns != data_set.feature_columns:
@@ -44,7 +44,7 @@ for company in company_names:
 
     preds = [None] * min_size
     for i in range(min_size, num_rows):
-        sub_data = {key: val[:i+1] for key, val in company_data.items()}
+        sub_data = {key: val[:i + 1] for key, val in company_data.items()}
 
         # 构造输入序列
         raw_seq = []
@@ -92,13 +92,10 @@ for company, df in df_results.items():
     alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
     header_cell.alignment = alignment
     # 设置框线
-    thin_border = Border(left=Side(style='thin'),
-                         right=Side(style='thin'),
-                         top=Side(style='thin'),
-                         bottom=Side(style='thin'))
+    thin_border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
     header_cell.border = thin_border
     for i, pred in enumerate(preds):
-        cell = ws.cell(row=i+2, column=max_col)  # Excel行号从2开始（跳过标题）
+        cell = ws.cell(row=i + 2, column=max_col)  # Excel行号从2开始（跳过标题）
         if pred is not None:
             cell.value = pred
             # 设置单元格格式为数值，显示两位小数
