@@ -5,20 +5,12 @@ import os
 from enum import Enum
 import time
 import math
+import data_process.finance_data.feature as ft
 
 w.start()
 
-# 财报数据
-finance_value = ["营业收入(单季)", "营业收入(TTM)", "经营活动现金流(TTM)"]
-finance_ratio = ["毛利率(单季)", "毛利率(TTM)", "净利率(单季)", "净利率(TTM)", "总资产收益率(单季)", "总资产收益率(TTM)", "资产负债率", "总资产周转率"]
-
-# 股市数据
-stock_value = ["区间日均收盘价", "区间最高收盘价", "区间最高收盘价日期", "区间最低收盘价", "区间最低收盘价日期"]
-stock_ratio = ["区间振幅", "区间日均换手率"]
-
-# 板块数据
-block_value = []
-block_ratio = ["板块涨跌幅", "板块日均换手率"]
+# 数据提取起始时间
+start_point = "2023-01-01"
 
 
 # 板块枚举值
@@ -39,26 +31,6 @@ with open(feature_map_path, "r", encoding="utf-8") as f:
     REVERSE_MAP = {v: k for k, v in FEATURE_NAME_MAP.items()}
 
 
-# 中文名 → Wind字段
-def translate_to_wind_fields(feature_list_cn: list[str]) -> list[str]:
-    return [FEATURE_NAME_MAP.get(f, f) for f in feature_list_cn]
-
-
-# Wind字段 → 中文名
-def translate_to_chinese_fields(wind_field_list: list[str]) -> list[str]:
-    return [REVERSE_MAP.get(f.lower(), f) for f in wind_field_list]
-
-
-# 财报数据配置
-features_wind = ",".join(translate_to_wind_fields(finance_value + finance_ratio))
-
-# 股价数据配置
-stock_wind = ",".join(translate_to_wind_fields(stock_value + stock_ratio))
-
-# 板块数据配置
-block_wind = ",".join(translate_to_wind_fields(block_value + block_ratio))
-
-
 def check_wind_data(wind_data, context=""):
     if wind_data.ErrorCode != 0:
         raise RuntimeError(f"[Wind ERROR] {context} 请求失败，错误码：{wind_data.ErrorCode}, fields: {wind_data.Fields}")
@@ -71,7 +43,7 @@ def build_translated_data_map(wind_fields: list[str], values: list[list]) -> dic
     如果值是 datetime/date 类型，则转为 'yyyy-mm-dd' 字符串。
     空值和 NaN 将被转换为空字符串。
     """
-    chinese_fields = translate_to_chinese_fields(wind_fields)
+    chinese_fields = ft.translate_to_chinese_fields(wind_fields)
     result = {}
 
     for ch_name, val in zip(chinese_fields, values):
@@ -99,9 +71,9 @@ class WindFinancialDataFetcher:
             return self._report_dates
 
         query_end_date = datetime.now().date() + timedelta(days=500)
-        outdata = check_wind_data(w.wsd(self.stock_code, "stm_issuingdate", "2005-01-01", query_end_date,
-                                        "Period=Q;Days=Alldays"),
-                                  context=f"stock_code:{self.stock_code},获取日期序列")
+        outdata = check_wind_data(
+            w.wsd(self.stock_code, "stm_issuingdate", start_point, query_end_date, "Period=Q;Days=Alldays"),
+            context=f"stock_code:{self.stock_code},获取日期序列")
         pub_dates_raw = outdata.Data[0]
         report_dates_raw = outdata.Times
 
@@ -134,7 +106,7 @@ class WindFinancialDataFetcher:
             report_dates.append(report_str)
             pub_dates.append(pub_str)
 
-        print(f"提取最近连续财报记录：共 {len(report_dates)} 条，起止：{report_dates[0]} 到 {report_dates[-1]}")
+        print(f"提取{self.stock_code}最近连续财报记录：共 {len(report_dates)} 条，起止：{report_dates[0]} 到 {report_dates[-1]}")
         self._report_dates = (report_dates, pub_dates)
         return self._report_dates
 
@@ -142,8 +114,9 @@ class WindFinancialDataFetcher:
     def get_finance_data(self, rpt_date: str):
         date = int(rpt_date.replace("-", ""))
 
-        wss_result = check_wind_data(w.wss(self.stock_code, features_wind, f"unit=1;rptDate={date};rptType=1;currencyType="),
-                                     context=f"stock_code:{self.stock_code},获取财报数据")
+        wss_result = check_wind_data(
+            w.wss(self.stock_code, ft.features_wind, f"unit=1;rptDate={date};rptType=1;currencyType="),
+            context=f"stock_code:{self.stock_code},获取财报数据")
 
         finance_data_map = build_translated_data_map(wss_result.Fields, wss_result.Data)
 
@@ -154,15 +127,16 @@ class WindFinancialDataFetcher:
         start_day_int, end_day_int = int(start_day.replace("-", "")), int(end_day.replace("-", ""))
 
         # 提取股票交易天数
-        wss_result = check_wind_data(w.wss(self.stock_code, "trade_days_per",
-                                           f"startDate={start_day_int};endDate={end_day_int}"),
-                                     context=f"stock_code:{self.stock_code},获取交易天数")
+        wss_result = check_wind_data(
+            w.wss(self.stock_code, "trade_days_per", f"startDate={start_day_int};endDate={end_day_int}"),
+            context=f"stock_code:{self.stock_code},获取交易天数")
         [[trade_days]] = wss_result.Data
 
-        wss_result = check_wind_data(w.wss(
-            self.stock_code, stock_wind,
-            f"ndays=-{trade_days};tradeDate={end_day_int};startDate={start_day_int};endDate={end_day_int};priceAdj=F"),
-                                     context=f"stock_code:{self.stock_code},获取区间股价统计信息")
+        wss_result = check_wind_data(
+            w.wss(
+                self.stock_code, ft.stock_wind,
+                f"ndays=-{trade_days};tradeDate={end_day_int};startDate={start_day_int};endDate={end_day_int};priceAdj=F"
+            ), context=f"stock_code:{self.stock_code},获取区间股价统计信息")
 
         stock_data_map = build_translated_data_map(wss_result.Fields, wss_result.Data)
 
@@ -172,9 +146,9 @@ class WindFinancialDataFetcher:
     def get_block_data(self, start_day: str, end_day: str):
         start_day_int, end_day_int = int(start_day.replace("-", "")), int(end_day.replace("-", ""))
 
-        wsee_result = check_wind_data(w.wsee(self.block_code, block_wind,
-                                             f"startDate={start_day_int};endDate={end_day_int};DynamicTime=1"),
-                                      context=f"stock_code:{self.stock_code},获取板块数据")
+        wsee_result = check_wind_data(
+            w.wsee(self.block_code, ft.block_wind, f"startDate={start_day_int};endDate={end_day_int};DynamicTime=1"),
+            context=f"stock_code:{self.stock_code},获取板块数据")
 
         block_data_map = build_translated_data_map(wsee_result.Fields, wsee_result.Data)
 
@@ -200,13 +174,8 @@ class WindFinancialDataFetcher:
                 block_data = self.get_block_data(start_day, end_day)
 
                 merged = {
-                    "报告期": report_date,
-                    "发布日期": pub_date,
-                    "统计开始日": start_day,
-                    "统计结束日": end_day,
-                    **finance_data,
-                    **stock_data,
-                    **block_data
+                    "报告期": report_date, "发布日期": pub_date, "统计开始日": start_day, "统计结束日": end_day, **finance_data,
+                    **stock_data, **block_data
                 }
 
                 all_data.append(merged)
@@ -223,8 +192,9 @@ class WindFinancialDataFetcher:
 
 # 获取指定板块所有的股票代码
 def get_stock_codes(block_code: BlockCode):
-    wset_result = check_wind_data(w.wset("sectorconstituent", f"date={datetime.now().date()};sectorid={block_code.code}"),
-                                  context=f"获取 {block_code.desc} 板块股票")
+    wset_result = check_wind_data(
+        w.wset("sectorconstituent", f"date={datetime.now().date()};sectorid={block_code.code}"),
+        context=f"获取 {block_code.desc} 板块股票")
 
     result_list = build_translated_data_map(wset_result.Fields, wset_result.Data)["wind_code"]
 

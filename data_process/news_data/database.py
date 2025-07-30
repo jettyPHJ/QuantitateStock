@@ -1,13 +1,15 @@
 import sqlite3
-import generate_news
+import data_process.news_data.generate_news as generate_news
 import json
 import time
 
+
 class NewsDBManager:
+
     def __init__(self, db_path="events.db"):
         self.conn = sqlite3.connect(db_path)
         self.cursor = self.conn.cursor()
-        
+
         # 使用默认的 DELETE 模式（非 WAL）
         self.cursor.execute("PRAGMA journal_mode=DELETE;")
         # 强同步策略，确保每次写操作都落盘
@@ -36,13 +38,13 @@ class NewsDBManager:
         table_name = self._get_table_name(stock_code)
         try:
             # 检查表是否存在
-            self.cursor.execute(
-                "SELECT name FROM sqlite_master WHERE type='table' AND name=?", (table_name,))
+            self.cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name=?", (table_name, ))
             if not self.cursor.fetchone():
                 return None, None
 
             # 查询数据
-            self.cursor.execute(f'''
+            self.cursor.execute(
+                f'''
                 SELECT news, gemini_embedding FROM {table_name}
                 WHERE year = ? AND quarter = ?
                 LIMIT 1
@@ -61,15 +63,11 @@ class NewsDBManager:
         self.ensure_table_exists(stock_code)
 
         try:
-            self.cursor.execute(f'''
+            self.cursor.execute(
+                f'''
                 INSERT INTO {table_name} (year, quarter, news, gemini_embedding)
                 VALUES (?, ?, ?, ?)
-            ''', (
-                year,
-                quarter,
-                news_text.strip(),
-                json.dumps(embedding)
-            ))
+            ''', (year, quarter, news_text.strip(), json.dumps(embedding)))
             print(f"成功写入 {stock_code} 的事件到数据库")
         except Exception as e:
             print(f"写入数据库失败：{e}")
@@ -105,6 +103,7 @@ def get_news_and_embedding(stock_code: str, quarter: str, year: int, db_manager:
     except Exception as e:
         print(f"调用 API 异常：{e}")
         return None, None
+
 
 # db = NewsDBManager("events.db")
 # text, emb = get_news_and_embedding("AAPL.O", "Q2", 2025, db)
