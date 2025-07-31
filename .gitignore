@@ -4,7 +4,8 @@
 # 忽略临时数据文件
 *.tmp
 *.log
-
+*.pth
+/logs
 # 忽略 VSCode 配置
 .vscode/
 

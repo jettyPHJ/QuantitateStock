@@ -14,8 +14,8 @@ class MambaModel(nn.Module):
         self.n_layers = n_layers
         self.pooling = PoolingLayer(method="last", d_model=d_model)
 
-        # 输入嵌入层
-        self.input_embedding = nn.Linear(input_dim, d_model)
+        # 支持 NaN mask 的输入嵌入层
+        self.input_embedding = MaskedInputEmbedding(input_dim, d_model)
 
         # Mamba层
         self.mamba_layers = nn.ModuleList([MambaBlock(d_model, use_conv=use_conv) for _ in range(n_layers)])
@@ -32,13 +32,13 @@ class MambaModel(nn.Module):
             nn.Sigmoid()  # 确保输出在0-1之间
         )
 
-    def forward(self, origins, x):
+    def forward(self, origins, features):
         """
         origins: 原始特征序列 (list of tensors)，一般用于 financial model 参数计算。
-        x: 归一化后的输入特征,shape (batch_size, seq_len, input_dim)
+        features: 归一化后的输入特征,shape (batch_size, seq_len, input_dim)
         """
-        # 输入嵌入
-        x = self.input_embedding(x)  # (batch_size, seq_len, d_model)
+        # 输入嵌入 支持 NaN 注意力加权
+        x = self.input_embedding(features)  # (batch_size, seq_len, d_model)
 
         # Mamba 层 + 残差连接
         for mamba_layer, layer_norm in zip(self.mamba_layers, self.layer_norms):
@@ -51,10 +51,6 @@ class MambaModel(nn.Module):
 
         # 输出参数预测
         output = self.output_layer(x_pooled) * 2
-        # params = self.output_layer(x_pooled)  # (batch_size, n_params)
-        # params = params * 2  # 缩放输出
-        # 自定义输出
-        # output = self.manual_financial_model(origins, params)
         return output
 
     def manual_financial_model(self, oringins, params):
@@ -79,6 +75,25 @@ class MambaModel(nn.Module):
         output = (price * a * ry_now / ry_before * 2 *
                   (b * torch.sigmoid(gy_now - gy_before) + c * torch.sigmoid(ny_now - ny_before)))
         return output  # (batch_size,)
+
+
+class MaskedInputEmbedding(nn.Module):
+
+    def __init__(self, input_dim: int, d_model: int):
+        super().__init__()
+        self.embedding = nn.Linear(input_dim, d_model)
+        self.mask_attention = nn.Sequential(nn.Linear(input_dim, d_model), nn.Sigmoid())
+
+    def forward(self, x):
+        """
+        x: (batch_size, seq_len, input_dim)，可能含 NaN
+        return: 加权嵌入 (batch_size, seq_len, d_model)
+        """
+        nan_mask = (~torch.isnan(x)).float()  # (B, T, F)
+        x_filled = torch.nan_to_num(x, nan=0.0)  # 替换 nan 为 0
+        x_embed = self.embedding(x_filled)  # (B, T, D)
+        attn = self.mask_attention(nan_mask)  # (B, T, D)
+        return x_embed * attn
 
 
 class PoolingLayer(nn.Module):

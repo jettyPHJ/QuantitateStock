@@ -1,7 +1,7 @@
 import torch
 import pandas as pd
 import numpy as np
-from MambaStock import MambaModel
+from model.MambaStock import MambaModel
 import data_process.data_set as data_set
 from openpyxl import load_workbook
 from openpyxl.styles import PatternFill, Alignment, Border, Side
@@ -92,7 +92,8 @@ for company, df in df_results.items():
     alignment = Alignment(horizontal='center', vertical='center', wrap_text=True)
     header_cell.alignment = alignment
     # 设置框线
-    thin_border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'), bottom=Side(style='thin'))
+    thin_border = Border(left=Side(style='thin'), right=Side(style='thin'), top=Side(style='thin'),
+                         bottom=Side(style='thin'))
     header_cell.border = thin_border
     for i, pred in enumerate(preds):
         cell = ws.cell(row=i + 2, column=max_col)  # Excel行号从2开始（跳过标题）

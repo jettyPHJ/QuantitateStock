@@ -1,11 +1,12 @@
 import torch
+import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
 import numpy as np
 import matplotlib.pyplot as plt
 import random
 import os
-import MambaStock
+import model.MambaStock as MambaStock
 from data_process.finance_data.database import BlockCode
 from data_process.data_set import FinancialDataset, collate_fn
 
@@ -41,7 +42,7 @@ def AdaptiveMAPE_loss(outputs, targets, min_output=0.05, fallback_weight=0.1):
     return torch.mean(loss) * 100
 
 
-def train_model(model, database: FinancialDataset):
+def train_model(model: nn.Module, database: FinancialDataset):
     """训练模型"""
 
     train_set, val_set = database.build_datasets()
