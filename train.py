@@ -1,12 +1,13 @@
 import torch
 import torch.optim as optim
-from torch.utils.data import Dataset, DataLoader
+from torch.utils.data import DataLoader
 import numpy as np
 import matplotlib.pyplot as plt
 import random
-import data_process.data_set as data_set
 import os
 import MambaStock
+from data_process.finance_data.database import BlockCode
+from data_process.data_set import FinancialDataset, collate_fn
 
 batch_size = 64
 
@@ -14,56 +15,6 @@ batch_size = 64
 torch.manual_seed(42)
 np.random.seed(42)
 random.seed(42)
-
-
-class FinancialDataset(Dataset):
-    """财务数据集"""
-
-    def __init__(self, data):
-        self.data = data
-
-    def __len__(self):
-        return len(self.data)
-
-    def __getitem__(self, idx):
-        sample = self.data[idx]
-        origins = torch.tensor(sample['origin'], dtype=torch.float32)  # shape: (seq_len, input_dim)
-        features = torch.tensor(sample['features'], dtype=torch.float32)  # shape: (seq_len, input_dim)
-        target = torch.tensor([sample['target']], dtype=torch.float32)  # shape: (1,)
-        return origins, features, target
-
-
-def collate_fn(batch):
-    """
-    batch: List of tuples from Dataset.__getitem__:
-        Each tuple: (origin: Tensor(seq_len, input_dim),
-                     features: Tensor(seq_len, input_dim),
-                     target: Tensor(()))
-    """
-    max_len = max(f.shape[0] for _, f, _ in batch)
-    input_dim = batch[0][1].shape[1]  # features.shape[1]
-
-    batch_origins = []
-    batch_features = []
-    batch_targets = []
-    lengths = []
-
-    for origins, features, targets in batch:
-        lengths.append(features.shape[0])  # 保存真实长度
-        pad_len = max_len - features.shape[0]
-        if pad_len > 0:
-            pad = torch.zeros(pad_len, input_dim)
-            features = torch.cat([features, pad], dim=0)
-
-        batch_origins.append(origins)
-        batch_features.append(features)
-        batch_targets.append(targets)
-
-    batch_features = torch.stack(batch_features)  # (batch_size, max_seq_len, input_dim)
-    batch_targets = torch.stack(batch_targets).squeeze()  # (batch_size,)
-    lengths = torch.tensor(lengths, dtype=torch.long)
-
-    return batch_origins, batch_features, batch_targets, lengths
 
 
 def AdaptiveMAPE_loss(outputs, targets, min_output=0.05, fallback_weight=0.1):
@@ -90,23 +41,15 @@ def AdaptiveMAPE_loss(outputs, targets, min_output=0.05, fallback_weight=0.1):
     return torch.mean(loss) * 100
 
 
-def train_model(model):
+def train_model(model, database: FinancialDataset):
     """训练模型"""
-    raw_data = data_set.load_excel(data_set.file_path, data_set.company_names, data_set.feature_columns)
-    data = data_set.generate_synthetic_data(raw_data)
 
-    # 分割数据集
-    random.shuffle(data)
-    train_size = int(0.8 * len(data))
-    train_data = data[:train_size]
-    val_data = data[train_size:]
+    train_set, val_set = database.build_datasets()
 
     # 创建数据加载器
-    train_dataset = FinancialDataset(train_data)
-    val_dataset = FinancialDataset(val_data)
 
-    train_loader = DataLoader(train_dataset, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
-    val_loader = DataLoader(val_dataset, batch_size=batch_size, shuffle=False, collate_fn=collate_fn)
+    train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
+    val_loader = DataLoader(val_set, batch_size=batch_size, shuffle=False, collate_fn=collate_fn)
 
     # 打印模型参数信息
     print(f"可训练参数总量: {count_parameters(model):,}")
@@ -128,16 +71,15 @@ def train_model(model):
         # 训练阶段
         model.train()
         train_loss = 0
-        for origins, batch_features, batch_targets, lengths in train_loader:
+        for origins, batch_features, batch_targets in train_loader:
 
             origins = [o.to(device) for o in origins]  # origin 是 list[Tensor]，需要单独处理
             batch_features = batch_features.to(device)
             batch_targets = batch_targets.to(device)
-            lengths = lengths.to(device)
 
             optimizer.zero_grad()
 
-            outputs = model(origins, batch_features, lengths)  # shape: (batch_size,)
+            outputs = model(origins, batch_features)  # shape: (batch_size,)
             loss = AdaptiveMAPE_loss(outputs, batch_targets)  # batch_targets: (batch_size,)
 
             loss.backward()
@@ -153,14 +95,13 @@ def train_model(model):
         model.eval()
         val_loss = 0
         with torch.no_grad():
-            for origins, batch_features, batch_targets, lengths in val_loader:
+            for origins, batch_features, batch_targets in val_loader:
 
                 origins = [o.to(device) for o in origins]
                 batch_features = batch_features.to(device)
                 batch_targets = batch_targets.to(device)
-                lengths = lengths.to(device)
 
-                outputs = model(origins, batch_features, lengths)
+                outputs = model(origins, batch_features)
                 loss = AdaptiveMAPE_loss(outputs, batch_targets)
                 val_loss += loss.item()
 
@@ -247,11 +188,11 @@ if __name__ == "__main__":
     print(f"开始训练 (使用卷积: {USE_CONV})...")
 
     # 创建模型
-    feature_dim = len(data_set.feature_columns)  # 财务特征维度
-    model = MambaStock.MambaModel(use_conv=USE_CONV)
+    db = FinancialDataset(block_code=BlockCode.US_CHIP, use_news=False, sample_len=8)
+    model = MambaStock.MambaModel(input_dim=len(db.feature_columns), use_conv=USE_CONV)
     model = model.to(device)
 
     print(f"Using device: {device}")
 
     # 训练模型
-    train_model(model)
+    train_model(model, db)
