@@ -131,8 +131,8 @@ class FinancialDataset(Dataset):
             for col in self.feature_columns:
                 df[col] = pd.to_numeric(df[col], errors='coerce')
 
-            for i in range(self.sample_len - 1, len(df)):
-                hist_df = df.iloc[:i + 1]  # 包含当前点的所有历史数据
+            for i in range(self.sample_len, len(df)):
+                hist_df = df.iloc[:i]  # 包含所有历史数据
                 window_df = hist_df.iloc[-self.sample_len:]  # 取当前窗口
 
                 # 构造每个特征的归一化值（用所有历史数据统计参数）
@@ -153,7 +153,8 @@ class FinancialDataset(Dataset):
                 feature_matrix = np.stack(norm_features, axis=-1)  # (seq_len, num_features)
                 origin_matrix = np.stack(origin_features, axis=-1)
 
-                target_val = df.iloc[i][self.target_column]
+                target_val = (df.iloc[i][self.target_column] -
+                              df.iloc[i - 1][self.target_column]) / df.iloc[i - 1][self.target_column]
                 if pd.isna(target_val):
                     continue
 

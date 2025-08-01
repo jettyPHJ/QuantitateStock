@@ -18,37 +18,12 @@ np.random.seed(42)
 random.seed(42)
 
 
-def AdaptiveMAPE_loss(outputs, targets, min_output=0.05, fallback_weight=0.1):
-    """
-    自适应 MAPE 损失函数:
-    - 以预测值为分母，模拟“决策偏差”
-    - 对 outputs 太小时使用 fallback MAE 避免不稳定
-    """
-    outputs_safe = outputs.clone()
-
-    # 防止除以极小值
-    mask = outputs.abs() < min_output
-    outputs_safe[mask] = min_output
-
-    # MAPE 成分（投资视角）
-    percentage_error = torch.abs((targets - outputs) / (targets))
-
-    # Fallback：当 outputs 太小，偏向用 MAE
-    fallback_mae = torch.abs(targets - outputs)
-
-    # 自适应融合
-    loss = percentage_error * (~mask) + fallback_weight * fallback_mae * mask.float()
-
-    return torch.mean(loss) * 100
-
-
 def train_model(model: nn.Module, database: FinancialDataset):
     """训练模型"""
 
     train_set, val_set = database.build_datasets()
 
     # 创建数据加载器
-
     train_loader = DataLoader(train_set, batch_size=batch_size, shuffle=True, collate_fn=collate_fn)
     val_loader = DataLoader(val_set, batch_size=batch_size, shuffle=False, collate_fn=collate_fn)
 
@@ -60,6 +35,8 @@ def train_model(model: nn.Module, database: FinancialDataset):
     optimizer = optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-5)
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', patience=5, factor=0.5)
 
+    criterion = nn.MSELoss()
+
     # 训练循环
     train_losses = []
     val_losses = []
@@ -67,6 +44,11 @@ def train_model(model: nn.Module, database: FinancialDataset):
     best_val_loss = float('inf')
     patience = 10
     patience_counter = 0
+
+    # 模型存储路径
+    model_name = model.__class__.__name__
+    save_dir = f'./model/{model_name}'
+    os.makedirs(save_dir, exist_ok=True)
 
     for epoch in range(100):
         # 训练阶段
@@ -81,7 +63,8 @@ def train_model(model: nn.Module, database: FinancialDataset):
             optimizer.zero_grad()
 
             outputs = model(origins, batch_features)  # shape: (batch_size,)
-            loss = AdaptiveMAPE_loss(outputs, batch_targets)  # batch_targets: (batch_size,)
+
+            loss = criterion(outputs * 100, batch_targets * 100)
 
             loss.backward()
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
@@ -103,7 +86,9 @@ def train_model(model: nn.Module, database: FinancialDataset):
                 batch_targets = batch_targets.to(device)
 
                 outputs = model(origins, batch_features)
-                loss = AdaptiveMAPE_loss(outputs, batch_targets)
+
+                loss = criterion(outputs * 100, batch_targets * 100)
+
                 val_loss += loss.item()
 
         val_loss /= len(val_loader)
@@ -115,18 +100,19 @@ def train_model(model: nn.Module, database: FinancialDataset):
         if val_loss < best_val_loss:
             best_val_loss = val_loss
             patience_counter = 0
-            torch.save(model.state_dict(), 'best_mamba_model.pth')
+            torch.save(model.state_dict(), f'{save_dir}/best_mamba_model.pth')
         else:
             patience_counter += 1
 
-        print(f'Epoch {epoch}, Train Loss: {train_loss:.6f}, Val Loss: {val_loss:.6f}')
+        print(f'Epoch {epoch}, Train Loss: {train_loss:.2f}, Val Loss: {val_loss:.2f}')
         plot_train_val_loss(train_losses, val_losses, save_path='logs/loss.png')
 
         if patience_counter >= patience:
             print(f'Early stopping at epoch {epoch}')
             break
+
     # 加载训练中验证集表现最好的模型参数
-    model.load_state_dict(torch.load('best_mamba_model.pth', weights_only=True))
+    model.load_state_dict(torch.load(f'{save_dir}/best_mamba_model.pth', weights_only=True))
     return model
 
 
@@ -159,23 +145,6 @@ def plot_train_val_loss(train_losses, val_losses, save_path='loss.png'):
     plt.savefig(save_path)
     plt.close()
     return
-
-
-def predict_new_company(model, scaler, quarters_data):
-    """为新公司预测参数"""
-    # 标准化输入数据
-    normalized_data = scaler.transform(quarters_data)
-
-    # 转换为张量
-    features = torch.FloatTensor(normalized_data).unsqueeze(0)  # 添加batch维度
-    length = torch.LongTensor([len(quarters_data)])
-
-    # 预测
-    model.eval()
-    with torch.no_grad():
-        params = model(features, length)
-
-    return params.squeeze().numpy()
 
 
 # 演示使用

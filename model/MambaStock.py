@@ -49,8 +49,8 @@ class MambaModel(nn.Module):
         # 池化
         x_pooled = self.pooling(x)  # (batch_size, d_model)
 
-        # 输出参数预测
-        output = self.output_layer(x_pooled) * 2
+        # 输出参数预测： 预测涨幅范围
+        output = self.output_layer(x_pooled) * 3 - 1
         return output
 
     def manual_financial_model(self, oringins, params):
