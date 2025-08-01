@@ -10,7 +10,7 @@ import model.MambaStock as MambaStock
 from data_process.finance_data.database import BlockCode
 from data_process.data_set import FinancialDataset, collate_fn
 
-batch_size = 64
+batch_size = 32
 
 # 设置随机种子
 torch.manual_seed(42)
@@ -46,8 +46,7 @@ def train_model(model: nn.Module, database: FinancialDataset):
     patience_counter = 0
 
     # 模型存储路径
-    model_name = model.__class__.__name__
-    save_dir = f'./model/{model_name}'
+    save_dir = f'./model/{model.__class__.__name__}'
     os.makedirs(save_dir, exist_ok=True)
 
     for epoch in range(100):
@@ -62,7 +61,7 @@ def train_model(model: nn.Module, database: FinancialDataset):
 
             optimizer.zero_grad()
 
-            outputs = model(origins, batch_features)  # shape: (batch_size,)
+            outputs = model(origins, batch_features).squeeze(-1)  # shape: (batch_size,)
 
             loss = criterion(outputs * 100, batch_targets * 100)
 
@@ -85,9 +84,9 @@ def train_model(model: nn.Module, database: FinancialDataset):
                 batch_features = batch_features.to(device)
                 batch_targets = batch_targets.to(device)
 
-                outputs = model(origins, batch_features)
+                outputs = model(origins, batch_features).squeeze(-1)
 
-                loss = criterion(outputs * 100, batch_targets * 100)
+                loss = criterion(outputs, batch_targets)
 
                 val_loss += loss.item()
 
@@ -158,7 +157,7 @@ if __name__ == "__main__":
     print(f"开始训练 (使用卷积: {USE_CONV})...")
 
     # 创建模型
-    db = FinancialDataset(block_code=BlockCode.US_CHIP, use_news=False, sample_len=8)
+    db = FinancialDataset(block_code=BlockCode.US_CHIP, use_news=False, exclude_stocks=["NVDA.O"])
     model = MambaStock.MambaModel(input_dim=len(db.feature_columns), use_conv=USE_CONV)
     model = model.to(device)
 

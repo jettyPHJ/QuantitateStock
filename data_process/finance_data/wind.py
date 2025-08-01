@@ -10,7 +10,7 @@ import data_process.finance_data.feature as ft
 w.start()
 
 # 数据提取起始时间
-start_point = "2023-01-01"
+start_point = "2005-01-01"
 
 
 # 板块枚举值
@@ -114,9 +114,8 @@ class WindFinancialDataFetcher:
     def get_finance_data(self, rpt_date: str):
         date = int(rpt_date.replace("-", ""))
 
-        wss_result = check_wind_data(
-            w.wss(self.stock_code, ft.features_wind, f"unit=1;rptDate={date};rptType=1;currencyType="),
-            context=f"stock_code:{self.stock_code},获取财报数据")
+        wss_result = check_wind_data(w.wss(self.stock_code, ft.features_wind, ft.features_wind_opt(date)),
+                                     context=f"stock_code:{self.stock_code},获取财报数据")
 
         finance_data_map = build_translated_data_map(wss_result.Fields, wss_result.Data)
 
@@ -133,10 +132,8 @@ class WindFinancialDataFetcher:
         [[trade_days]] = wss_result.Data
 
         wss_result = check_wind_data(
-            w.wss(
-                self.stock_code, ft.stock_wind,
-                f"ndays=-{trade_days};tradeDate={end_day_int};startDate={start_day_int};endDate={end_day_int};priceAdj=F"
-            ), context=f"stock_code:{self.stock_code},获取区间股价统计信息")
+            w.wss(self.stock_code, ft.stock_wind, ft.stock_wind_opt(trade_days, end_day_int, start_day_int)),
+            context=f"stock_code:{self.stock_code},获取区间股价统计信息")
 
         stock_data_map = build_translated_data_map(wss_result.Fields, wss_result.Data)
 
@@ -145,9 +142,9 @@ class WindFinancialDataFetcher:
     # 获取板块相关统计信息
     def get_block_data(self, start_day: str, end_day: str):
         start_day_int, end_day_int = int(start_day.replace("-", "")), int(end_day.replace("-", ""))
-
+        year = int(start_day.split('-')[0])
         wsee_result = check_wind_data(
-            w.wsee(self.block_code, ft.block_wind, f"startDate={start_day_int};endDate={end_day_int};DynamicTime=1"),
+            w.wsee(self.block_code, ft.block_wind, ft.block_wind_opt(start_day_int, end_day_int, year)),
             context=f"stock_code:{self.stock_code},获取板块数据")
 
         block_data_map = build_translated_data_map(wsee_result.Fields, wsee_result.Data)

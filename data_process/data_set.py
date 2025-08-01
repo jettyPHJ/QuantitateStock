@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import torch
 from torch.utils.data import Dataset
-from data_process.finance_data.feature import FEATURE_META, ScalingMethod
+from data_process.finance_data.feature import FEATURE_META, FeatureConfig, ScalingMethod
 from data_process.finance_data.database import BlockCode, FinanceDBManager
 from data_process.news_data.database import NewsDBManager
 
@@ -10,12 +10,13 @@ from data_process.news_data.database import NewsDBManager
 class FinancialDataset(Dataset):
     """基于数据库构造的财务+新闻数据集"""
 
-    def __init__(self, block_code=BlockCode.US_CHIP, use_news=False, sample_len=8):
+    def __init__(self, block_code=BlockCode.US_CHIP, use_news=False, exclude_stocks=[]):
         self.block_code = block_code
         self.use_news = use_news
-        self.sample_len = sample_len
+        self.sample_len = 8
         self.target_column = '区间日均收盘价'
         self.sort_column = '报告期'
+        self.exclude_stocks = exclude_stocks
 
         self.finance_db = FinanceDBManager(block_code)
         self.news_db = NewsDBManager(block_code) if use_news else None
@@ -30,10 +31,10 @@ class FinancialDataset(Dataset):
 
     def _load_data(self):
         """加载每家公司数据并自动识别可训练字段,空字符串设置为nan"""
-        # raw_data = self.finance_db.fetch_block_data()
-        raw_data = {}
-        raw_data["NVDA.O"] = self.finance_db.fetch_stock_data("NVDA.O")
+        raw_data = self.finance_db.fetch_block_data()
         for stock_code, records in raw_data.items():
+            if stock_code in self.exclude_stocks:
+                continue
             df = pd.DataFrame(records).replace(r'^\s*$', pd.NA, regex=True)
 
             if df[self.target_column].isna().any():
@@ -94,7 +95,7 @@ class FinancialDataset(Dataset):
 
         return numeric_cols
 
-    def _scaling(self, arr: np.ndarray, method: ScalingMethod) -> np.ndarray:
+    def _scaling(self, arr: np.ndarray, config: FeatureConfig) -> np.ndarray:
         """
         Args:
             arr: numpy 数组，一维，表示滑动窗口的特征数据。
@@ -105,14 +106,15 @@ class FinancialDataset(Dataset):
         arr = np.array(arr, dtype=float)
 
         try:
-            if method == ScalingMethod.NONE:
+            if config.norm == ScalingMethod.NONE:
                 return arr
-            elif method == ScalingMethod.ZSCORE:
+            elif config.norm == ScalingMethod.ZSCORE:
                 return zscore_normalize(arr)
-            elif method == ScalingMethod.LOG_ZSCORE:
+            elif config.norm == ScalingMethod.LOG_ZSCORE:
                 return log_zscore_normalize(arr, offset=1)
-            elif method == ScalingMethod.CLIP:
-                return clip_normalize(arr, min_val=-1.0, max_val=1.0)
+            elif config.norm == ScalingMethod.CLIP:
+                scale = config.clip_scale or 100  # 默认 100
+                return clip_normalize(arr, min_val=-scale, max_val=scale)
             else:
                 # 未知方法返回原始数据
                 return arr
@@ -143,10 +145,15 @@ class FinancialDataset(Dataset):
                     hist_series = hist_df[col].values  # 历史全部数据
                     window_series = window_df[col].values  # 当前窗口
 
-                    if np.isnan(window_series).all():
-                        continue  # 当前窗口全是空值，跳过
+                    # 保留原始值和归一化值，即使是 NaN
+                    normed = self._scaling(hist_series, FEATURE_META[col])[-self.sample_len:]
 
-                    normed = self._scaling(hist_series, FEATURE_META[col].norm)[-self.sample_len:]
+                    # 确保维度对齐
+                    if len(normed) != self.sample_len or len(window_series) != self.sample_len:
+                        print(f"Warning: feature {col} at i={i} has mismatched length.")
+                        normed = np.full(self.sample_len, np.nan)
+                        window_series = np.full(self.sample_len, np.nan)
+
                     norm_features.append(normed)
                     origin_features.append(window_series)
 
@@ -240,10 +247,10 @@ def log_zscore_normalize(arr: np.ndarray, offset=1) -> np.ndarray:
 
 def clip_normalize(arr, min_val=0.0, max_val=1.0):
     """
-    裁剪 百分比(Clip) 归一化。(会将数据除以100)
+    裁剪归一化
     限制在指定的最小值和最大值之间。
     """
-    arr = np.array(arr / 100, dtype=float)
+    arr = np.array(arr / max_val, dtype=float)
     return np.clip(arr, min_val, max_val)
 
 

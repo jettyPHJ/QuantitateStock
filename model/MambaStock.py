@@ -7,7 +7,7 @@ import data_process.data_set as data_set
 class MambaModel(nn.Module):
     """Mamba模型"""
 
-    def __init__(self, input_dim=10, d_model=128, n_layers=5, use_conv=False):
+    def __init__(self, input_dim=10, d_model=64, n_layers=3, use_conv=False):
         super().__init__()
         self.input_dim = input_dim
         self.d_model = d_model
@@ -29,7 +29,7 @@ class MambaModel(nn.Module):
             nn.ReLU(),
             nn.Dropout(0.1),
             nn.Linear(d_model // 2, 1),
-            nn.Sigmoid()  # 确保输出在0-1之间
+            nn.Tanh()  # 确保输出在-1~1之间
         )
 
     def forward(self, origins, features):
@@ -50,7 +50,7 @@ class MambaModel(nn.Module):
         x_pooled = self.pooling(x)  # (batch_size, d_model)
 
         # 输出参数预测： 预测涨幅范围
-        output = self.output_layer(x_pooled) * 3 - 1
+        output = self.output_layer(x_pooled)
         return output
 
     def manual_financial_model(self, oringins, params):

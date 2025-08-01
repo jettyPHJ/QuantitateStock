@@ -76,7 +76,7 @@ class FinanceDBManager:
         table_name = self._get_table_name(stock_code)
 
         # 检查表是否存在
-        self.cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name=?", (table_name, ))
+        self.cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name=?", (table_name,))
         exists = self.cursor.fetchone() is not None
 
         if not exists:
@@ -121,5 +121,5 @@ class FinanceDBManager:
 # --------------------- 测试入口 ---------------------
 if __name__ == "__main__":
     db = FinanceDBManager(block_code=BlockCode.US_CHIP)
-    # db.fetch_block_data()
-    db.fetch_stock_data(stock_code="NVDA.O")
+    db.fetch_block_data()
+    # db.fetch_stock_data(stock_code="NVDA.O")

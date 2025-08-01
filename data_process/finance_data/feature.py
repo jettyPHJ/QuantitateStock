@@ -21,6 +21,7 @@ class FeatureConfig:
     train: bool
     norm: ScalingMethod
     source: str
+    clip_scale: int | None = None  # 仅当 norm == CLIP 时使用
 
 
 # ------------------------- 3. 特征元数据 -------------------------
@@ -52,10 +53,18 @@ FEATURE_META: dict[str, FeatureConfig] = {
     # 股市比例
     "区间振幅": FeatureConfig(True, ScalingMethod.CLIP, "股市"),
     "区间日均换手率": FeatureConfig(True, ScalingMethod.CLIP, "股市"),
+    "区间平均PE": FeatureConfig(False, ScalingMethod.CLIP, "股市"),
+    "区间平均PB": FeatureConfig(False, ScalingMethod.CLIP, "股市"),
+    "区间平均PS": FeatureConfig(False, ScalingMethod.CLIP, "股市"),
+    "市现率PCF": FeatureConfig(False, ScalingMethod.CLIP, "股市", 1000),
 
     # 板块比例
     "板块涨跌幅": FeatureConfig(True, ScalingMethod.CLIP, "板块"),
     "板块日均换手率": FeatureConfig(True, ScalingMethod.CLIP, "板块"),
+    "板块PE": FeatureConfig(True, ScalingMethod.CLIP, "板块"),
+    "板块PB": FeatureConfig(True, ScalingMethod.CLIP, "板块"),
+    "板块PS": FeatureConfig(True, ScalingMethod.CLIP, "板块"),
+    "板块PCF": FeatureConfig(True, ScalingMethod.CLIP, "板块", 1000),
 }
 
 # ------------------------- 4. 特征映射文件加载 -------------------------
@@ -95,3 +104,15 @@ def get_trainable_feature_names() -> list[str]:
 features_wind = ",".join(translate_to_wind_fields(get_feature_names_by_source("财报")))
 stock_wind = ",".join(translate_to_wind_fields(get_feature_names_by_source("股市")))
 block_wind = ",".join(translate_to_wind_fields(get_feature_names_by_source("板块")))
+
+
+def features_wind_opt(date: int) -> str:
+    return f"unit=1;rptDate={date};rptType=1;currencyType="
+
+
+def stock_wind_opt(trade_days: int, end_day: int, start_day: int) -> str:
+    return f"ndays=-{trade_days};tradeDate={end_day};startDate={start_day};endDate={end_day};priceAdj=F"
+
+
+def block_wind_opt(start_day: int, end_day: int, year: int) -> str:
+    return f"startDate={start_day};endDate={end_day};tradeDate={end_day};DynamicTime=1;excludeRule=2;year={year}"
