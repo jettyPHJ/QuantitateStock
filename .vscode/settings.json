@@ -1,0 +1,18 @@
+{
+    "files.exclude": {
+        "**/__pycache__": true
+    },
+    "files.watcherExclude": {
+        "**/__pycache__": true
+    },
+    "yapf.args": [
+        "--style",
+        "{based_on_style: google, column_limit: 120, allow_split_before_dict_value: false, split_before_named_assigns: false, split_all_top_level_comma_separated_values: false, split_arguments_when_comma_terminated: false, each_dict_entry_on_separate_line: false}"
+    ],
+    // 针对 Python 文件的编辑器配置
+    "[python]": {
+        "editor.defaultFormatter": "eeyore.yapf",
+        "editor.formatOnSave": true,
+        "editor.formatOnSaveMode": "file"
+    },
+}

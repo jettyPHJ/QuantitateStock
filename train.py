@@ -3,10 +3,10 @@ import torch.nn as nn
 import torch.optim as optim
 from torch.utils.data import DataLoader
 import numpy as np
-import matplotlib.pyplot as plt
 import random
 import os
 import model.MambaStock as MambaStock
+import utils.plot as pl
 from data_process.finance_data.database import BlockCode
 from data_process.data_set import FinancialDataset, collate_fn
 
@@ -28,8 +28,7 @@ def train_model(model: nn.Module, database: FinancialDataset):
     val_loader = DataLoader(val_set, batch_size=batch_size, shuffle=False, collate_fn=collate_fn)
 
     # 打印模型参数信息
-    print(f"可训练参数总量: {count_parameters(model):,}")
-    # print_model_parameters(model)
+    print(f"可训练参数总量: {pl.count_parameters(model):,}")
 
     # 优化器
     optimizer = optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-5)
@@ -89,7 +88,7 @@ def train_model(model: nn.Module, database: FinancialDataset):
         if val_loss < best_val_loss:
             best_val_loss = val_loss
             patience_counter = 0
-            torch.save(model.state_dict(), f'{save_dir}/best_mamba_model.pth')
+            torch.save(model.state_dict(), f'{save_dir}/best_model.pth')
         else:
             patience_counter += 1
 
@@ -98,41 +97,10 @@ def train_model(model: nn.Module, database: FinancialDataset):
             break
 
         print(f'Epoch {epoch}, Train Loss: {train_loss:.6f}, Val Loss: {val_loss:.6f}')
-        plot_train_val_loss(train_losses, val_losses, save_path='logs/loss.png')
+        pl.plot_train_val_loss(train_losses, val_losses, save_path=f'{save_dir}/loss.png')
 
-    model.load_state_dict(torch.load(f'{save_dir}/best_mamba_model.pth', weights_only=True))
+    model.load_state_dict(torch.load(f'{save_dir}/best_model.pth', weights_only=True))
     return model
-
-
-#显示训练参数
-def print_model_parameters(model):
-    print("模型结构及参数：")
-    for name, param in model.named_parameters():
-        if param.requires_grad:
-            print(f"{name:50s} shape: {str(list(param.shape)):>20}  参数量: {param.numel():,}")
-
-
-def count_parameters(model):
-    return sum(p.numel() for p in model.parameters() if p.requires_grad)
-
-
-# 绘制训练曲线
-def plot_train_val_loss(train_losses, val_losses, save_path='loss.png'):
-    plt.figure(figsize=(10, 6))
-    plt.plot(train_losses, label='Training Loss')
-    plt.plot(val_losses, label='Validation Loss')
-    plt.xlabel('Epoch')
-    plt.ylabel('Loss')
-    plt.title('Training and Validation Loss')
-    plt.legend()
-    plt.grid(True)
-
-    # 确保目录存在
-    os.makedirs(os.path.dirname(save_path) or '.', exist_ok=True)
-    # 保存并关闭
-    plt.savefig(save_path)
-    plt.close()
-    return
 
 
 # 演示使用
@@ -141,13 +109,10 @@ if __name__ == "__main__":
     print(f"CUDA版本: {torch.version.cuda}")
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-    # 可以选择是否使用卷积
-    USE_CONV = False  # 设置为False可以禁用卷积
-    print(f"开始训练 (使用卷积: {USE_CONV})...")
 
     # 创建模型
-    db = FinancialDataset(block_code=BlockCode.NASDAQ_Computer_Index, use_news=False, exclude_stocks=["NVDA.O"])
-    model = MambaStock.MambaModel(input_dim=len(db.feature_columns), use_conv=USE_CONV)
+    db = FinancialDataset(block_codes=[BlockCode.NASDAQ_Computer_Index], use_news=False, exclude_stocks=["NVDA.O"])
+    model = MambaStock.MambaModel(input_dim=len(db.feature_columns))
     model = model.to(device)
 
     print(f"Using device: {device}")

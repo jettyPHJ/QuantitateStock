@@ -27,7 +27,7 @@ class MambaModel(nn.Module):
         self.output_layer = nn.Sequential(
             nn.Linear(d_model, d_model // 2),
             nn.ReLU(),
-            # nn.Dropout(0.1),
+            nn.Dropout(0.1),
             nn.Linear(d_model // 2, 1),
             nn.Tanh()  # 确保输出在-1~1之间
         )

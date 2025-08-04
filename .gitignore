@@ -6,8 +6,7 @@
 *.log
 *.pth
 /logs
-# 忽略 VSCode 配置
-.vscode/
+/results
 
 # 忽略 Python 缓存
 __pycache__/

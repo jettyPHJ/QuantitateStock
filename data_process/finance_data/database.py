@@ -84,6 +84,10 @@ class FinanceDBManager:
             fetcher = wd.WindFinancialDataFetcher(stock_code=stock_code, block_code=self.block_code)
             data_list = fetcher.get_data()
 
+            if not data_list:
+                print(f"[Info] {stock_code} 无可用财报数据，跳过")
+                return []
+
             for record in data_list:
                 self.save_financial_record(stock_code, record)
 
@@ -99,22 +103,43 @@ class FinanceDBManager:
         return data
 
     # 抓取板块数据
-    def fetch_block_data(self):
+    def fetch_block_data(self, update=False):
         """
         获取整个板块下所有股票的财务数据，并以 {stock_code: [record_dict, ...]} 的形式返回。
         """
         result = {}
-
-        # 获取板块下所有股票代码
         stock_codes = wd.get_stock_codes(self.block_code)
+        print(f"[Info] 开始处理板块（{self.block_code.name}）下共 {len(stock_codes)} 支股票")
 
         for stock_code in stock_codes:
             try:
-                data = self.fetch_stock_data(stock_code)
-                result[stock_code] = data
-            except Exception as e:
-                print(f"[错误] 获取 {stock_code} 财务数据失败：{e}")
+                if update:
+                    # 强制更新数据，直接调用 fetch_stock_data
+                    data = self.fetch_stock_data(stock_code)
+                else:
+                    # 从数据库读取数据
+                    table_name = self._get_table_name(stock_code)
 
+                    # 尝试查询数据，如果表不存在或无数据，则会得到空列表
+                    self.cursor.execute(f'SELECT * FROM "{table_name}"')
+                    rows = self.cursor.fetchall()
+
+                    if not rows:
+                        print(f"[Info] 跳过 {stock_code}（表无数据）")
+                        continue
+
+                    col_names = [desc[0] for desc in self.cursor.description]
+                    data = [dict(zip(col_names, row)) for row in rows]
+
+                # 将有效数据添加到结果中
+                if data:
+                    result[stock_code] = data
+
+            except Exception as e:
+                # print(f"[错误] 获取 {stock_code} 财务数据失败：{e}")
+                continue
+
+        print(f"[完成] 板块处理完成，共获取 {len(result)} 支股票的财务数据")
         return result
 
 
