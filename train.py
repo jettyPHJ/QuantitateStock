@@ -111,7 +111,7 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # 创建模型
-    db = FinancialDataset(block_codes=[BlockCode.NASDAQ_Computer_Index], use_news=False, exclude_stocks=["NVDA.O"])
+    db = FinancialDataset(block_codes=[BlockCode.NASDAQ_Computer_Index], use_news=False, exclude_stocks=[])
     model = MambaStock.MambaModel(input_dim=len(db.feature_columns))
     model = model.to(device)
 

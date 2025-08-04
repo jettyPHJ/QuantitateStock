@@ -21,10 +21,11 @@ loader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=False, collate_fn=co
 
 # 加载模型
 model = MambaModel(input_dim=len(dataset.feature_columns))
+
 save_dir = f'./model/{model.__class__.__name__}'
 model_path = f"{save_dir}/best_model.pth"
 
-model.load_state_dict(torch.load(model_path, map_location=DEVICE))
+model.load_state_dict(torch.load(model_path, map_location=DEVICE, weights_only=True))
 model.to(DEVICE)
 model.eval()
 
