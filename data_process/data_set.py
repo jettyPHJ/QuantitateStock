@@ -167,7 +167,7 @@ class FinancialDataset(Dataset):
 
                 self.samples.append((origin_matrix, feature_matrix, target_val))
 
-    def build_datasets(self, train_ratio=0.8, seed=42):
+    def build_datasets(self, train_ratio=0.8, seed=27):
         np.random.seed(seed)
         all_samples = self.samples
         np.random.shuffle(all_samples)
@@ -256,4 +256,4 @@ def clip_normalize(arr, min_val=0.0, max_val=1.0):
 
 # --------------------- 测试入口 ---------------------
 if __name__ == "__main__":
-    data = FinancialDataset(block_code=BlockCode.US_CHIP, use_news=False, sample_len=8)
+    data = FinancialDataset(block_code=BlockCode.NASDAQ_Computer_Index, use_news=False)

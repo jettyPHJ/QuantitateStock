@@ -7,7 +7,7 @@ import data_process.data_set as data_set
 class MambaModel(nn.Module):
     """Mamba模型"""
 
-    def __init__(self, input_dim=10, d_model=64, n_layers=3, use_conv=False):
+    def __init__(self, input_dim=8, d_model=64, n_layers=1, use_conv=False):
         super().__init__()
         self.input_dim = input_dim
         self.d_model = d_model
@@ -27,7 +27,7 @@ class MambaModel(nn.Module):
         self.output_layer = nn.Sequential(
             nn.Linear(d_model, d_model // 2),
             nn.ReLU(),
-            nn.Dropout(0.1),
+            # nn.Dropout(0.1),
             nn.Linear(d_model // 2, 1),
             nn.Tanh()  # 确保输出在-1~1之间
         )

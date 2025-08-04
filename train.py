@@ -10,7 +10,7 @@ import model.MambaStock as MambaStock
 from data_process.finance_data.database import BlockCode
 from data_process.data_set import FinancialDataset, collate_fn
 
-batch_size = 32
+batch_size = 64
 
 # 设置随机种子
 torch.manual_seed(42)
@@ -34,10 +34,8 @@ def train_model(model: nn.Module, database: FinancialDataset):
     # 优化器
     optimizer = optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-5)
     scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', patience=5, factor=0.5)
-
     criterion = nn.MSELoss()
 
-    # 训练循环
     train_losses = []
     val_losses = []
 
@@ -50,52 +48,44 @@ def train_model(model: nn.Module, database: FinancialDataset):
     os.makedirs(save_dir, exist_ok=True)
 
     for epoch in range(100):
-        # 训练阶段
-        model.train()
-        train_loss = 0
-        for origins, batch_features, batch_targets in train_loader:
+        if epoch != 0:
+            model.train()
+            train_loss = 0
+            for origins, batch_features, batch_targets in train_loader:
+                origins = [o.to(device) for o in origins]
+                batch_features = batch_features.to(device)
+                batch_targets = batch_targets.to(device)
 
-            origins = [o.to(device) for o in origins]  # origin 是 list[Tensor]，需要单独处理
-            batch_features = batch_features.to(device)
-            batch_targets = batch_targets.to(device)
+                optimizer.zero_grad()
+                outputs = model(origins, batch_features).squeeze(-1)
+                loss = criterion(outputs, batch_targets)
+                loss.backward()
+                torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
+                optimizer.step()
+                train_loss += loss.item()
 
-            optimizer.zero_grad()
-
-            outputs = model(origins, batch_features).squeeze(-1)  # shape: (batch_size,)
-
-            loss = criterion(outputs * 100, batch_targets * 100)
-
-            loss.backward()
-            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
-            optimizer.step()
-
-            train_loss += loss.item()
-
-        train_loss /= len(train_loader)
-        train_losses.append(train_loss)
+            train_loss /= len(train_loader)
+            train_losses.append(train_loss)
+        else:
+            train_loss = float('nan')  # 避免打印时报错
 
         # 验证阶段
         model.eval()
         val_loss = 0
         with torch.no_grad():
             for origins, batch_features, batch_targets in val_loader:
-
                 origins = [o.to(device) for o in origins]
                 batch_features = batch_features.to(device)
                 batch_targets = batch_targets.to(device)
 
                 outputs = model(origins, batch_features).squeeze(-1)
-
                 loss = criterion(outputs, batch_targets)
-
                 val_loss += loss.item()
 
         val_loss /= len(val_loader)
         val_losses.append(val_loss)
-
         scheduler.step(val_loss)
 
-        # 早停检查
         if val_loss < best_val_loss:
             best_val_loss = val_loss
             patience_counter = 0
@@ -103,14 +93,13 @@ def train_model(model: nn.Module, database: FinancialDataset):
         else:
             patience_counter += 1
 
-        print(f'Epoch {epoch}, Train Loss: {train_loss:.2f}, Val Loss: {val_loss:.2f}')
-        plot_train_val_loss(train_losses, val_losses, save_path='logs/loss.png')
-
         if patience_counter >= patience:
             print(f'Early stopping at epoch {epoch}')
             break
 
-    # 加载训练中验证集表现最好的模型参数
+        print(f'Epoch {epoch}, Train Loss: {train_loss:.6f}, Val Loss: {val_loss:.6f}')
+        plot_train_val_loss(train_losses, val_losses, save_path='logs/loss.png')
+
     model.load_state_dict(torch.load(f'{save_dir}/best_mamba_model.pth', weights_only=True))
     return model
 
@@ -157,7 +146,7 @@ if __name__ == "__main__":
     print(f"开始训练 (使用卷积: {USE_CONV})...")
 
     # 创建模型
-    db = FinancialDataset(block_code=BlockCode.US_CHIP, use_news=False, exclude_stocks=["NVDA.O"])
+    db = FinancialDataset(block_code=BlockCode.NASDAQ_Computer_Index, use_news=False, exclude_stocks=["NVDA.O"])
     model = MambaStock.MambaModel(input_dim=len(db.feature_columns), use_conv=USE_CONV)
     model = model.to(device)
 
