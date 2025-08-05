@@ -18,7 +18,7 @@ np.random.seed(42)
 random.seed(42)
 
 
-def train_model(model: nn.Module, database: FinancialDataset, finetune_flag: bool = False):
+def train_model(model: nn.Module, database: FinancialDataset, finetune_flag: bool = False, device=None):
     """训练模型，如果是微调则减小学习率"""
 
     train_set, val_set = database.build_datasets()
@@ -50,7 +50,7 @@ def train_model(model: nn.Module, database: FinancialDataset, finetune_flag: boo
     file_name, loss_name = 'model.pth', 'loss.png'
 
     if finetune_flag:
-        optimizer = optim.Adam(model.parameters(), lr=learning_rate / 10, weight_decay=1e-5)
+        optimizer = optim.Adam(model.parameters(), lr=learning_rate / 10)
         scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', patience=decay_patience / 2, factor=0.5)
         patience = patience / 2
         file_name, loss_name = 'model_finetune.pth', 'loss_finetune.png'
@@ -112,19 +112,63 @@ def train_model(model: nn.Module, database: FinancialDataset, finetune_flag: boo
     return model
 
 
-# 演示使用
-if __name__ == "__main__":
+def run_experiment(model_cls, pretrain_blocks, finetune_blocks, exclude_stocks=None, use_news=False, mode="both"):
+    """
+    执行训练流程，可选模式：预训练 / 微调 / 全流程
 
-    print(f"CUDA版本: {torch.version.cuda}")
+    :param model_cls: 模型类，例如 MambaStock.MambaModel
+    :param pretrain_blocks: 用于预训练的股票板块
+    :param finetune_blocks: 用于微调的股票板块
+    :param exclude_stocks: 所有阶段统一排除的股票列表
+    :param use_news: 是否使用新闻数据
+    :param mode: "pretrain" | "finetune" | "both"
+    """
+    if exclude_stocks is None:
+        exclude_stocks = []
 
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
-    # 创建模型
-    db = FinancialDataset(block_codes=[BlockCode.NASDAQ_Computer_Index], use_news=False, exclude_stocks=["NVDA.O"])
-    model = MambaStock.MambaModel(input_dim=len(db.feature_columns))
-    model = model.to(device)
-
+    print(f"CUDA版本: {torch.version.cuda}")
     print(f"Using device: {device}")
 
-    # 训练模型
-    train_model(model, db)
+    model_name = model_cls.__name__
+    model_path = f"./model/{model_name}/model.pth"
+
+    # ========== 1. 预训练阶段 ==========
+    if mode in ("pretrain", "both"):
+        print("==> 开始预训练")
+
+        pretrain_dataset = FinancialDataset(block_codes=pretrain_blocks, use_news=use_news,
+                                            exclude_stocks=exclude_stocks)
+
+        model = model_cls(input_dim=len(pretrain_dataset.feature_columns)).to(device)
+
+        train_model(model, pretrain_dataset, device=device)
+
+    # ========== 2. 微调阶段 ==========
+    if mode in ("finetune", "both"):
+        print("==> 开始微调")
+
+        finetune_dataset = FinancialDataset(block_codes=finetune_blocks, use_news=use_news,
+                                            exclude_stocks=exclude_stocks)
+
+        finetune_model = model_cls(input_dim=len(finetune_dataset.feature_columns)).to(device)
+
+        if os.path.exists(model_path):
+            finetune_model.load_state_dict(torch.load(model_path, map_location=device, weights_only=True))
+            print(f"成功加载预训练权重: {model_path}")
+        else:
+            raise FileNotFoundError(f"找不到预训练模型权重: {model_path}")
+
+        train_model(finetune_model, finetune_dataset, finetune_flag=True, device=device)
+
+
+# --------------------- 使用入口 ---------------------
+if __name__ == "__main__":
+    run_experiment(
+        model_cls=MambaStock.MambaModel,
+        pretrain_blocks=[BlockCode.NASDAQ_Computer_Index],
+        finetune_blocks=[BlockCode.US_CHIP],
+        exclude_stocks=["NVDA.O"],
+        mode="finetune"  # 可选: "pretrain", "finetune", "both"
+    )

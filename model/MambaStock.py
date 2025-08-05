@@ -7,7 +7,7 @@ import data_process.data_set as data_set
 class MambaModel(nn.Module):
     """Mamba模型"""
 
-    def __init__(self, input_dim=8, d_model=64, n_layers=1, use_conv=False):
+    def __init__(self, input_dim=8, d_model=64, n_layers=1):
         super().__init__()
         self.input_dim = input_dim
         self.d_model = d_model
@@ -18,7 +18,7 @@ class MambaModel(nn.Module):
         self.input_embedding = MaskedInputEmbedding(input_dim, d_model)
 
         # Mamba层
-        self.mamba_layers = nn.ModuleList([MambaBlock(d_model, use_conv=use_conv) for _ in range(n_layers)])
+        self.mamba_layers = nn.ModuleList([MambaBlock(d_model) for _ in range(n_layers)])
 
         # 层归一化
         self.layer_norms = nn.ModuleList([nn.LayerNorm(d_model) for _ in range(n_layers)])
@@ -120,21 +120,15 @@ class PoolingLayer(nn.Module):
 class MambaBlock(nn.Module):
     """核心Mamba块实现"""
 
-    def __init__(self, d_model, d_state=16, d_conv=4, expand=2, use_conv=False):
+    def __init__(self, d_model, d_state=16, d_conv=4, expand=2):
         super().__init__()
         self.d_model = d_model
         self.d_state = d_state
         self.d_conv = d_conv
         self.d_inner = expand * d_model
-        self.use_conv = use_conv
 
         # 输入投影
         self.in_proj = nn.Linear(d_model, self.d_inner * 2)
-
-        # 可选的卷积层
-        if self.use_conv:
-            self.conv1d = nn.Conv1d(in_channels=self.d_inner, out_channels=self.d_inner, kernel_size=d_conv,
-                                    padding=d_conv - 1, groups=self.d_inner)
 
         # SSM参数
         self.x_proj = nn.Linear(self.d_inner, d_state * 2)
@@ -159,25 +153,20 @@ class MambaBlock(nn.Module):
         xz = self.in_proj(x)  # (batch_size, seq_len, d_inner * 2)
         x_proj, z = xz.chunk(2, dim=-1)  # 每个 (batch_size, seq_len, d_inner)
 
-        # 可选的卷积处理
-        if self.use_conv:
-            x_conv = self.conv1d(x_proj.transpose(1, 2))[:, :, :seq_len].transpose(1, 2)
-            x_conv = self.activation(x_conv)
-        else:
-            x_conv = self.activation(x_proj)
+        x_ac = self.activation(x_proj)
 
         # SSM
         A = -torch.exp(self.A_log.float())  # (d_inner, d_state)
 
         # 计算 B, C, dt
-        x_dbl = self.x_proj(x_conv)  # (batch_size, seq_len, d_state * 2)
+        x_dbl = self.x_proj(x_ac)  # (batch_size, seq_len, d_state * 2)
         B, C = x_dbl.chunk(2, dim=-1)  # 每个 (batch_size, seq_len, d_state)
 
-        dt = self.dt_proj(x_conv)  # (batch_size, seq_len, d_inner)
+        dt = self.dt_proj(x_ac)  # (batch_size, seq_len, d_inner)
         dt = F.softplus(dt)
 
         # 简化的SSM计算
-        y = self.selective_scan(x_conv, dt, A, B, C, self.D)
+        y = self.selective_scan(x_ac, dt, A, B, C, self.D)
 
         # 门控
         y = y * self.activation(z)
