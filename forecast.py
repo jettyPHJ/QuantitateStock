@@ -7,14 +7,16 @@ from model.MambaStock import MambaModel
 from data_process.finance_data.database import BlockCode
 from data_process.data_set import SingleStockDataset, collate_fn
 
-STOCK_CODE = "TSLA.O"
+stock_code = "AAPL.O"
+finetune_flag = False
+
 DEVICE = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 BATCH_SIZE = 16
 
 # 加载数据
-dataset = SingleStockDataset(stock_code=STOCK_CODE, block_code=BlockCode.NASDAQ_Computer_Index)
+dataset = SingleStockDataset(stock_code=stock_code, block_code=BlockCode.NASDAQ_Computer_Index)
 if len(dataset) == 0:
-    print(f"[Info] 股票 {STOCK_CODE} 无有效样本，无法预测。")
+    print(f"[Info] 股票 {stock_code} 无有效样本，无法预测。")
     exit(0)
 
 loader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=False, collate_fn=collate_fn)
@@ -23,7 +25,9 @@ loader = DataLoader(dataset, batch_size=BATCH_SIZE, shuffle=False, collate_fn=co
 model = MambaModel(input_dim=len(dataset.feature_columns))
 
 save_dir = f'./model/{model.__class__.__name__}'
-model_path = f"{save_dir}/best_model.pth"
+model_path = f"{save_dir}/model.pth"
+if finetune_flag:
+    model_path = f"{save_dir}/model_finetune.pth"
 
 model.load_state_dict(torch.load(model_path, map_location=DEVICE, weights_only=True))
 model.to(DEVICE)
@@ -87,7 +91,7 @@ print(f" 最终的平均 MAPE 为: {final_mape} \n 最大误差为: {deviation_m
 # 保存为 Excel
 df = pd.DataFrame(all_records)
 os.makedirs("results", exist_ok=True)
-excel_path = f"results/{STOCK_CODE}_prediction.xlsx"
+excel_path = f"results/{stock_code}_prediction.xlsx"
 df.to_excel(excel_path, index=False)
 
 print(f"[完成] 预测结果已保存至：{excel_path}")

@@ -18,8 +18,8 @@ np.random.seed(42)
 random.seed(42)
 
 
-def train_model(model: nn.Module, database: FinancialDataset):
-    """训练模型"""
+def train_model(model: nn.Module, database: FinancialDataset, finetune_flag: bool = False):
+    """训练模型，如果是微调则减小学习率"""
 
     train_set, val_set = database.build_datasets()
 
@@ -28,11 +28,13 @@ def train_model(model: nn.Module, database: FinancialDataset):
     val_loader = DataLoader(val_set, batch_size=batch_size, shuffle=False, collate_fn=collate_fn)
 
     # 打印模型参数信息
-    print(f"可训练参数总量: {pl.count_parameters(model):,}")
+    print(f"是否微调:{finetune_flag} 可训练参数总量: {pl.count_parameters(model):,}")
 
     # 优化器
-    optimizer = optim.Adam(model.parameters(), lr=1e-3, weight_decay=1e-5)
-    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', patience=5, factor=0.5)
+    learning_rate, decay_patience = 1e-3, 10
+    optimizer = optim.Adam(model.parameters(), lr=learning_rate, weight_decay=1e-5)
+    scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', patience=decay_patience, factor=0.5)
+
     criterion = nn.MSELoss()
 
     train_losses = []
@@ -45,6 +47,13 @@ def train_model(model: nn.Module, database: FinancialDataset):
     # 模型存储路径
     save_dir = f'./model/{model.__class__.__name__}'
     os.makedirs(save_dir, exist_ok=True)
+    file_name, loss_name = 'model.pth', 'loss.png'
+
+    if finetune_flag:
+        optimizer = optim.Adam(model.parameters(), lr=learning_rate / 10, weight_decay=1e-5)
+        scheduler = optim.lr_scheduler.ReduceLROnPlateau(optimizer, mode='min', patience=decay_patience / 2, factor=0.5)
+        patience = patience / 2
+        file_name, loss_name = 'model_finetune.pth', 'loss_finetune.png'
 
     for epoch in range(100):
         if epoch != 0:
@@ -88,7 +97,7 @@ def train_model(model: nn.Module, database: FinancialDataset):
         if val_loss < best_val_loss:
             best_val_loss = val_loss
             patience_counter = 0
-            torch.save(model.state_dict(), f'{save_dir}/best_model.pth')
+            torch.save(model.state_dict(), f'{save_dir}/{file_name}')
         else:
             patience_counter += 1
 
@@ -97,9 +106,9 @@ def train_model(model: nn.Module, database: FinancialDataset):
             break
 
         print(f'Epoch {epoch}, Train Loss: {train_loss:.6f}, Val Loss: {val_loss:.6f}')
-        pl.plot_train_val_loss(train_losses, val_losses, save_path=f'{save_dir}/loss.png')
+        pl.plot_train_val_loss(train_losses, val_losses, save_path=f'{save_dir}/{loss_name}')
 
-    model.load_state_dict(torch.load(f'{save_dir}/best_model.pth', weights_only=True))
+    model.load_state_dict(torch.load(f'{save_dir}/{file_name}', weights_only=True))
     return model
 
 
@@ -111,7 +120,7 @@ if __name__ == "__main__":
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 
     # 创建模型
-    db = FinancialDataset(block_codes=[BlockCode.NASDAQ_Computer_Index], use_news=False, exclude_stocks=[])
+    db = FinancialDataset(block_codes=[BlockCode.NASDAQ_Computer_Index], use_news=False, exclude_stocks=["NVDA.O"])
     model = MambaStock.MambaModel(input_dim=len(db.feature_columns))
     model = model.to(device)
 

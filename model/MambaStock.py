@@ -200,17 +200,21 @@ class MambaBlock(nn.Module):
             # 当前时间步的输入
             u_i = u[:, i, :]  # (batch_size, d_inner)
             delta_i = delta[:, i, :].unsqueeze(-1)  # (batch_size, d_inner, 1)
-            B_i = B[:, i, :].unsqueeze(1)  # (batch_size, 1, d_state)
-            C_i = C[:, i, :].unsqueeze(1)  # (batch_size, 1, d_state)
+            B_i = B[:, i, :]  # (batch_size, d_state)
+            C_i = C[:, i, :]  # (batch_size, d_state)
 
             # 状态更新
-            dA = torch.exp(delta_i * A.unsqueeze(0))  # (batch_size, d_inner, d_state)
-            dB = delta_i * B_i  # (batch_size, d_inner, d_state)
+            # dA = exp(delta_i * A)
+            dA = torch.exp(delta_i * A)  # (batch_size, d_inner, d_state)
+            # dB = delta_i * B_i
+            dB = delta_i * B_i.unsqueeze(1)  # (batch_size, d_inner, d_state)
 
             h = h * dA + dB * u_i.unsqueeze(-1)  # (batch_size, d_inner, d_state)
 
             # 输出计算
-            y_i = torch.sum(h * C_i, dim=-1) + D * u_i  # (batch_size, d_inner)
+            # y_i = (C_i @ h) + D * u_i
+            # 这里的 C_i 需要转置并与 h 的最后两维进行点积
+            y_i = torch.sum(h * C_i.unsqueeze(1), dim=-1) + D * u_i  # (batch_size, d_inner)
             outputs.append(y_i)
 
         return torch.stack(outputs, dim=1)  # (batch_size, seq_len, d_inner)

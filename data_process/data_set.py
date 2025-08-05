@@ -106,12 +106,13 @@ class BaseFinancialDataset:
 # --------------------- 用于训练集 ---------------------
 class FinancialDataset(BaseFinancialDataset, Dataset):
 
-    def __init__(self, block_codes, use_news=False, exclude_stocks=[]):
+    def __init__(self, block_codes, use_news=False, exclude_stocks=[], update=False):
         if not isinstance(block_codes, list):
             block_codes = [block_codes]
         self.block_codes = block_codes
         self.use_news = use_news
         self.exclude_stocks = exclude_stocks
+        self.update = update
         self.finance_dbs = [FinanceDBManager(code) for code in block_codes]
         self.company_data = {}
         self.feature_columns = []
@@ -123,7 +124,7 @@ class FinancialDataset(BaseFinancialDataset, Dataset):
     def _load_data(self):
         """加载每家公司数据并自动识别可训练字段,空字符串设置为nan"""
         for finance_db in self.finance_dbs:
-            raw_data = finance_db.fetch_block_data()
+            raw_data = finance_db.fetch_block_data(self.update)
             for stock_code, records in raw_data.items():
                 if stock_code in self.exclude_stocks:
                     continue
@@ -268,6 +269,6 @@ def clip_normalize(arr, min_val=0.0, max_val=1.0):
 
 # --------------------- 测试入口 ---------------------
 if __name__ == "__main__":
-    dataset = FinancialDataset(block_codes=[BlockCode.NASDAQ_Computer_Index, BlockCode.US_CHIP], use_news=False)
+    dataset = FinancialDataset(block_codes=[BlockCode.SP_500], update=True)
     train_set, val_set = dataset.build_datasets()
     print(f"Train samples: {len(train_set)}, Val samples: {len(val_set)}")

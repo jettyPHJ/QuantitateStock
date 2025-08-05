@@ -19,6 +19,7 @@ class BlockCode(Enum):
     US_SEMI = ("[US]半导体", "1000041892000000")
     US_AUTO = ("[US]无人驾驶", "1000041895000000")
     NASDAQ_Computer_Index = ("纳斯达克计算机指数", "1000010326000000")
+    SP_500 = ("标普500指数", "a005010800000000")
 
     def __init__(self, desc: str, code: str):
         self.desc = desc
