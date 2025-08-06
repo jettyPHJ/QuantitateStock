@@ -5,7 +5,7 @@ from torch.utils.data import DataLoader
 import numpy as np
 import random
 import os
-import model.MambaStock as MambaStock
+from model import MambaModel, LSTMAttentionModel
 import utils.plot as pl
 from data_process.finance_data.database import BlockCode
 from data_process.data_set import FinancialDataset, collate_fn
@@ -21,6 +21,12 @@ random.seed(42)
 def train_model(model: nn.Module, database: FinancialDataset, finetune_flag: bool = False, device=None):
     """训练模型，如果是微调则减小学习率"""
 
+    # 配置数据存储路径
+    save_dir = f"model/training_artifacts/{model.__class__.__name__}"
+    os.makedirs(save_dir, exist_ok=True)
+    file_name, loss_name = 'model.pth', 'loss.png'
+
+    # 生成训练集和测试集
     train_set, val_set = database.build_datasets()
 
     # 创建数据加载器
@@ -43,11 +49,6 @@ def train_model(model: nn.Module, database: FinancialDataset, finetune_flag: boo
     best_val_loss = float('inf')
     patience = 10
     patience_counter = 0
-
-    # 模型存储路径
-    save_dir = f'./model/{model.__class__.__name__}'
-    os.makedirs(save_dir, exist_ok=True)
-    file_name, loss_name = 'model.pth', 'loss.png'
 
     if finetune_flag:
         optimizer = optim.Adam(model.parameters(), lr=learning_rate / 10)
@@ -132,7 +133,7 @@ def run_experiment(model_cls, pretrain_blocks, finetune_blocks, exclude_stocks=N
     print(f"Using device: {device}")
 
     model_name = model_cls.__name__
-    model_path = f"./model/{model_name}/model.pth"
+    model_path = f"model/training_artifacts/{model_name}/model.pth"
 
     # ========== 1. 预训练阶段 ==========
     if mode in ("pretrain", "both"):
@@ -166,9 +167,9 @@ def run_experiment(model_cls, pretrain_blocks, finetune_blocks, exclude_stocks=N
 # --------------------- 使用入口 ---------------------
 if __name__ == "__main__":
     run_experiment(
-        model_cls=MambaStock.MambaModel,
+        model_cls=LSTMAttentionModel,
         pretrain_blocks=[BlockCode.NASDAQ_Computer_Index],
         finetune_blocks=[BlockCode.US_CHIP],
         exclude_stocks=["NVDA.O"],
-        mode="finetune"  # 可选: "pretrain", "finetune", "both"
+        mode="pretrain"  # 可选: "pretrain", "finetune", "both"
     )

@@ -3,11 +3,11 @@ from torch.utils.data import DataLoader
 import pandas as pd
 import os
 from data_process.data_set import SingleStockDataset, collate_fn
-from model import MambaStock
+from model import MambaModel, LSTMAttentionModel
 from data_process.finance_data.database import BlockCode
 
 
-def run_prediction(model_cls, stock_code, block_code, use_finetune_weights=True, result_dir="results"):
+def run_prediction(model_cls, stock_code, block_code, use_finetune_weights=True):
     """
     运行预测流程，支持选择是否加载微调权重。
 
@@ -21,6 +21,11 @@ def run_prediction(model_cls, stock_code, block_code, use_finetune_weights=True,
 
     print(f"==> 开始预测: 股票代码={stock_code}, 使用设备={device}, 是否加载微调权重={use_finetune_weights}")
 
+    # 配置路径
+    save_dir = f'./model/training_artifacts/{model_cls.__name__}'
+    model_path = f"{save_dir}/model_finetune.pth" if use_finetune_weights else f"{save_dir}/model.pth"
+    result_dir = f'results/{model_cls.__name__}'
+
     # 加载数据
     dataset = SingleStockDataset(stock_code=stock_code, block_code=block_code)
     if len(dataset) == 0:
@@ -31,9 +36,6 @@ def run_prediction(model_cls, stock_code, block_code, use_finetune_weights=True,
 
     # 加载模型
     model = model_cls(input_dim=len(dataset.feature_columns)).to(device)
-
-    save_dir = f'./model/{model_cls.__name__}'
-    model_path = f"{save_dir}/model_finetune.pth" if use_finetune_weights else f"{save_dir}/model.pth"
 
     if not os.path.exists(model_path):
         raise FileNotFoundError(f"未找到模型权重文件: {model_path}")
@@ -91,7 +93,7 @@ def run_prediction(model_cls, stock_code, block_code, use_finetune_weights=True,
 
     # 保存为 Excel
     os.makedirs(result_dir, exist_ok=True)
-    excel_path = os.path.join(result_dir, f"{stock_code}_prediction.xlsx")
+    excel_path = os.path.join(result_dir, f"{stock_code}_pre.xlsx")
     pd.DataFrame(all_records).to_excel(excel_path, index=False)
 
     print(f"[完成] 预测结果已保存至：{excel_path}")
@@ -100,7 +102,7 @@ def run_prediction(model_cls, stock_code, block_code, use_finetune_weights=True,
 # --------------------- 使用入口 ---------------------
 if __name__ == "__main__":
     run_prediction(
-        model_cls=MambaStock.MambaModel,
+        model_cls=LSTMAttentionModel,
         stock_code="NVDA.O",
         block_code=BlockCode.NASDAQ_Computer_Index,
         use_finetune_weights=False  # 切换微调 or 预训练模型
