@@ -5,8 +5,8 @@
 *.tmp
 *.log
 *.pth
-/logs
-/results
+model/training_artifacts
+results
 
 # 忽略 Python 缓存
 __pycache__/
