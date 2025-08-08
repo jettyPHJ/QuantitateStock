@@ -144,7 +144,7 @@ class FinancialDataset(BaseFinancialDataset, Dataset):
             if samples:
                 self.samples_by_company[stock_code] = samples
 
-    def build_datasets(self, train_ratio=0.8):
+    def build_datasets(self, train_ratio=0.85):
         np.random.seed(27)
         all_stocks = list(self.samples_by_company.keys())
         np.random.shuffle(all_stocks)

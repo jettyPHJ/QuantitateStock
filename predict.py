@@ -2,6 +2,7 @@ import torch
 from torch.utils.data import DataLoader
 import pandas as pd
 import os
+import numpy as np
 from data_process.data_set import SingleStockDataset, collate_fn
 from model import MambaModel, LSTMAttentionModel
 from data_process.finance_data.database import BlockCode
@@ -48,6 +49,7 @@ def run_prediction(model_cls, stock_code, block_code, use_finetune_weights=True)
     MAPE_list = []
     start = False
     pre_price = 0
+    last_row = None  # 缓存上一个样本
 
     with torch.no_grad():
         for origins, features, _ in loader:
@@ -73,23 +75,50 @@ def run_prediction(model_cls, stock_code, block_code, use_finetune_weights=True)
                     if start:
                         mape = abs(pre_price - base_price) / pre_price if pre_price != 0 else float("nan")
                         MAPE_list.append(mape)
-                        row_dict["MAPE"] = mape
+                        if last_row is not None:
+                            last_row["MAPE"] = mape
                     else:
                         start = True
-                        row_dict["MAPE"] = float("nan")
-
                     pre_price = current_pre_price
                 else:
                     row_dict["预测股价"] = float("nan")
-                    row_dict["MAPE"] = float("nan")
+                    # 不需要写 MAPE，保留为 NaN 即可
 
-                all_records.append(row_dict)
+                # 上一行入表
+                if last_row is not None:
+                    all_records.append(last_row)
+
+                # 当前行变为上一行，暂存
+                last_row = row_dict
+
+    # 循环结束后，别忘了把最后一行也加进去
+    if last_row is not None:
+        last_row["MAPE"] = float("nan")  # 最后一行无法计算 MAPE
+        all_records.append(last_row)
 
     # 结果汇总
     final_mape = sum(MAPE_list) / len(MAPE_list) if MAPE_list else float("nan")
     deviation_max = max(MAPE_list) if MAPE_list else float("nan")
+    # 结果汇总
+    if MAPE_list:
+        # 创建一个 NumPy 数组的副本，以免修改原始列表
+        mape_array = np.array(MAPE_list)
 
-    print(f"📊 最终平均 MAPE: {final_mape:.4f} | 最大误差: {deviation_max:.4f}")
+        # 获取排序后的数组
+        sorted_mape = np.sort(mape_array)
+
+        # 计算后20%的起始索引
+        start_index = int(len(sorted_mape) * 0.8)
+
+        # 获取后20%的误差值
+        top_20_percent_mape = sorted_mape[start_index:]
+
+        # 计算后20%的平均误差
+        avg_top_20_percent_mape = np.mean(top_20_percent_mape)
+    else:
+        avg_top_20_percent_mape = float("nan")
+
+    print(f"📊 最终平均 MAPE: {final_mape:.4f} | 最大误差: {deviation_max:.4f} | 前20%最大误差的平均数：{avg_top_20_percent_mape:.4f}")
 
     # 保存为 Excel
     os.makedirs(result_dir, exist_ok=True)
@@ -105,5 +134,5 @@ if __name__ == "__main__":
         model_cls=LSTMAttentionModel,
         stock_code="NVDA.O",
         block_code=BlockCode.NASDAQ_Computer_Index,
-        use_finetune_weights=False  # 切换微调 or 预训练模型
+        use_finetune_weights=True  # 切换微调 or 预训练模型
     )
