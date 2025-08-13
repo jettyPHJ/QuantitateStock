@@ -1,9 +1,10 @@
 import os
 import sqlite3
-import json
-from typing import Optional, List, Dict, Any
-import data_process.news_data.news as gn
+from typing import List, Dict
+from data_process.news_data.news import Evaluation, GeminiFinanceAnalyzer
 import time
+from datetime import datetime, timedelta
+from math import exp
 
 
 class NewsDBManager:
@@ -12,7 +13,7 @@ class NewsDBManager:
     """
 
     def __init__(self, stock_code: str, db_dir: str = "db"):
-        self.news_manager = gn.GeminiFinanceAnalyzer()
+        self.news_manager = GeminiFinanceAnalyzer()
 
         self.stock_code = stock_code
         self.db_dir = os.path.join(os.path.dirname(__file__), db_dir)
@@ -51,67 +52,70 @@ class NewsDBManager:
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
                 year INTEGER,
                 news TEXT,
-                scores TEXT
+                evaluations TEXT
             )
         ''')
         self.conn.commit()
 
-    def save_news_with_scores(self, year: int, news_text: str, scores: list):
+    def save_news_with_evaluations(self, year: int, news_text: str, evaluations: str):
         """
-        插入大模型输出和结构化评分数据
+        存储大模型输出和结构化评分数据
         """
         try:
-            scores_json = json.dumps(scores, ensure_ascii=False)
             self.cursor.execute(
                 f'''
-                INSERT INTO {self.table_name} (year, news, scores)
+                INSERT INTO {self.table_name} (year, news, evaluations)
                 VALUES (?, ?, ?)
-                ''', (year, news_text.strip(), scores_json))
+                ''', (year, news_text.strip(), evaluations.strip()))
             self.conn.commit()
             print(f"[INFO] 已写入 {self.stock_code}_{year} 年的评分数据")
         except Exception as e:
             print(f"[ERROR] 写入数据库失败: {e}")
             self.conn.rollback()  # 写入失败时回滚事务
 
-    def get_or_generate_scores(self, year: int) -> Optional[List[Dict[str, Any]]]:
+    def get_evaluations(self, year: int) -> List[Evaluation]:
         """
         核心方法：先从数据库查询评分，如果没有则通过 Gemini API 生成并存储。
         """
         # 1. 尝试从数据库查询，直接将逻辑内联
         try:
             self.cursor.execute(
-                f'''SELECT scores FROM {self.table_name}
+                f'''SELECT evaluations FROM {self.table_name}
                                     WHERE year = ? LIMIT 1''', (year,))
             row = self.cursor.fetchone()
             if row:
                 print(f"[INFO] 从数据库获取 {self.stock_code}_{year} 年的评分数据")
-                return json.loads(row[0])
+                evaluations = self.news_manager.deserialize_evaluations(row[0])
+                return evaluations
         except Exception as e:
             print(f"[ERROR] 查询数据库失败: {e}")
 
         # 2. 数据库中没有，调用 Gemini API 生成
-        print(f"[INFO] 数据库中未找到 {self.stock_code}_{year} 年数据，正在调用大模型生成...")
-        max_attempts = 3  # 总共尝试2次
+        print(f"[INFO] 数据库中未找到 {self.stock_code}_{year} 年数据，开始调用大模型...")
+        max_attempts = 3  # 总共尝试3次
         for attempt in range(max_attempts):
             try:
-                print(f"[INFO] 正在调用大模型... (第 {attempt + 1}/{max_attempts} 次尝试)")
+                print(f"[INFO] 正在调用大模型抓取新闻... (第 {attempt + 1}/{max_attempts} 次尝试)")
 
                 # 2a. 调用大模型获取原始文本
                 response_text = self.news_manager.get_company_news(self.stock_code, year)
                 if not response_text:
                     # 这种情况是API调用成功，但返回空内容，也应视为一种“失败”
-                    raise ValueError("大模型未返回任何有效文本内容。")
+                    raise ValueError("大模型未返回任何新闻内容。")
 
-                # 2b. 解析返回的文本
-                print("[INFO] 模型返回数据成功，正在解析分数...")
-                generated_scores = self.news_manager.get_scores(response_text)
+                # 2b. 调用大模型获取评估
+                print("[INFO] 模型返回新闻成功，进行评估中...")
+                evaluations_json = self.news_manager.evaluate_news(self.stock_code, year, response_text)
+                if not evaluations_json:
+                    raise ValueError("大模型评分返回为空")
 
                 # 2c. 将新生成的数据存储到数据库
-                print(f"[INFO] 解析成功，正在将 {self.stock_code} 在 {year} 年的新数据存入数据库...")
-                self.save_news_with_scores(year, response_text, generated_scores)
+                print(f"[INFO] 评分完成，正在将 {self.stock_code} 在 {year} 年的新数据存入数据库...")
+                self.save_news_with_evaluations(year, response_text, evaluations_json)
 
                 # 如果所有步骤都成功，返回结果并跳出循环
-                return generated_scores
+                evaluations = self.news_manager.deserialize_evaluations(evaluations_json)
+                return evaluations
 
             except Exception as e:
                 print(f"[ERROR] 第 {attempt + 1} 次尝试失败: {e}")
@@ -121,8 +125,7 @@ class NewsDBManager:
                     print(f"[INFO] 等待 {wait_time} 秒后进行最后一次尝试...")
                     time.sleep(wait_time)
                 else:
-                    # 所有尝试都失败了
-                    print(f"[CRITICAL] 所有 {max_attempts} 次尝试均告失败，无法为 {year} 年生成评分数据。")
+                    print(f"[CRITICAL] 所有 {max_attempts} 次尝试均告失败，无法为 {year} 年生成数据。")
                     return None
 
     def __del__(self):
@@ -134,9 +137,69 @@ class NewsDBManager:
             pass
 
 
+def linear_decay(days_passed: int, max_days: int = 7) -> float:
+    """线性递减权重，7天内从1减到0，超过7天为0"""
+    if days_passed < 0 or days_passed > max_days:
+        return 0.0
+    return max(0.0, 1 - days_passed / max_days)
+
+
+def compute_scores(news_items: List[Dict], start_date: str, end_date: str, decay_days: int = 7) -> Dict[str, float]:
+    """
+    计算[start_date, end_date]内，结合news_items中新闻
+    （考虑前decay_days天内的新闻事件）对区间综合评分。
+    每条新闻对其发生后decay_days天内有影响，影响逐日递减。
+    """
+    start = datetime.strptime(start_date, "%Y-%m-%d")
+    end = datetime.strptime(end_date, "%Y-%m-%d")
+    window_start = start - timedelta(days=decay_days)
+
+    # 初始化每天的累计权重和评分
+    total_days = (end - start).days + 1
+    daily_policy_scores = [0.0] * total_days
+    daily_competition_scores = [0.0] * total_days
+    daily_weights = [0.0] * total_days
+
+    for item in news_items:
+        news_date = datetime.strptime(item["date"], "%Y-%m-%d")
+        # 新闻必须发生在window_start到end之间，才算影响
+        if not (window_start <= news_date <= end):
+            continue
+
+        # 计算新闻对预测区间内每天的影响
+        for day_offset in range(total_days):
+            current_day = start + timedelta(days=day_offset)
+            days_since_news = (current_day - news_date).days
+            weight = linear_decay(days_since_news, max_days=decay_days)
+            if weight <= 0:
+                continue
+            daily_policy_scores[day_offset] += item["industry_policy_score"] * weight
+            daily_competition_scores[day_offset] += item["peer_competition_score"] * weight
+            daily_weights[day_offset] += weight
+
+    # 计算区间内的加权平均分数（每天的分数除以权重，防止权重为0）
+    weighted_policy_sum = 0.0
+    weighted_competition_sum = 0.0
+    total_weight_sum = 0.0
+
+    for i in range(total_days):
+        if daily_weights[i] > 0:
+            weighted_policy_sum += daily_policy_scores[i] / daily_weights[i]
+            weighted_competition_sum += daily_competition_scores[i] / daily_weights[i]
+            total_weight_sum += 1
+
+    if total_weight_sum == 0:
+        return {"industry_policy": 0.0, "peer_competition": 0.0}
+
+    return {
+        "industry_policy": weighted_policy_sum / total_weight_sum,
+        "peer_competition": weighted_competition_sum / total_weight_sum,
+    }
+
+
 # --------------------- 测试入口 ---------------------
 if __name__ == "__main__":
     # 创建数据库实例
     news_db = NewsDBManager(stock_code="NVDA.O")
-    results = news_db.get_or_generate_scores(2025)
+    results = news_db.get_evaluations(2025)
     print("results: ", results)

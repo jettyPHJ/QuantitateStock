@@ -3,9 +3,11 @@ from google import genai
 from google.genai import types
 from datetime import datetime
 from pydantic import BaseModel
+from typing import List
+from pydantic import TypeAdapter
 
 
-class Respond(BaseModel):
+class Evaluation(BaseModel):
     title: str
     date: str
     industry_policy_score: float
@@ -93,7 +95,7 @@ List of industry-related news:
             # 配置生成设置，包括联网搜索
             config = types.GenerateContentConfig(temperature=0.1, max_output_tokens=2048, top_p=0.8, top_k=40,
                                                  tools=[grounding_tool],
-                                                 thinking_config=types.ThinkingConfig(thinking_budget=128))
+                                                 thinking_config=types.ThinkingConfig(thinking_budget=512))
 
             # 发送请求
             response = self.client.models.generate_content(
@@ -107,8 +109,8 @@ List of industry-related news:
             print(f"API 调用失败: {e}")
         return None
 
-    # 评估新闻并输出结构化数据
-    def get_scores(self, stock_code: str, year: int, news: str):
+    # 评估新闻并输出结构化数据的字符串
+    def evaluate_news(self, stock_code: str, year: int, news: str) -> str:
         if not news:
             raise ValueError("新闻为空，无法解析。")
 
@@ -122,7 +124,7 @@ List of industry-related news:
                 contents=prompt,
                 config={
                     "response_mime_type": "application/json",
-                    "response_schema": list[Respond],
+                    "response_schema": list[Evaluation],
                 },
             )
             return response.text
@@ -130,6 +132,15 @@ List of industry-related news:
         except Exception as e:
             print(f"API 调用失败: {e}")
         return None
+
+    # 加载得到结构化数据
+    def deserialize_evaluations(self, evaluations: str) -> List[Evaluation]:
+        try:
+            adapter = TypeAdapter(List[Evaluation])
+            return adapter.validate_json(evaluations)  # 直接传入原始字符串
+        except Exception as e:
+            print(f"反序列化失败: {e}")
+            return []
 
 
 # --------------------- 测试入口 ---------------------
@@ -139,5 +150,7 @@ if __name__ == "__main__":
     # 获取新闻评分
     news = analyzer.get_company_news('NVDA.O', 2025)
     print('线上大模型回复：', news)
-    scores = analyzer.get_scores('NVDA.O', 2025, news)
-    print('分数：', scores)
+    _evaluations = analyzer.evaluate_news('NVDA.O', 2025, news)
+    print('分数：', _evaluations)
+    evaluations = analyzer.deserialize_evaluations(_evaluations)
+    print('反序列化：', evaluations)
