@@ -132,7 +132,7 @@ def run_prediction(model_cls, stock_code, block_code, use_finetune_weights=True)
 if __name__ == "__main__":
     run_prediction(
         model_cls=LSTMAttentionModel,
-        stock_code="NVDA.O",
+        stock_code="AAPL.O",
         block_code=BlockCode.NASDAQ_Computer_Index,
         use_finetune_weights=True  # 切换微调 or 预训练模型
     )
