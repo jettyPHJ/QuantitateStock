@@ -93,9 +93,9 @@ List of industry-related news:
             grounding_tool = types.Tool(google_search=types.GoogleSearch())
 
             # 配置生成设置，包括联网搜索
-            config = types.GenerateContentConfig(temperature=0.1, max_output_tokens=2048, top_p=0.8, top_k=40,
+            config = types.GenerateContentConfig(temperature=0.1, max_output_tokens=2048, top_p=0.7, top_k=20,
                                                  tools=[grounding_tool],
-                                                 thinking_config=types.ThinkingConfig(thinking_budget=512))
+                                                 thinking_config=types.ThinkingConfig(thinking_budget=1024))
 
             # 发送请求
             response = self.client.models.generate_content(
@@ -117,16 +117,14 @@ List of industry-related news:
         prompt = self.create_scoring_prompt(stock_code, year, news)
 
         try:
+            # 配置生成设置
+            config = types.GenerateContentConfig(temperature=0.4, max_output_tokens=2048, top_p=0.85, top_k=40,
+                                                 thinking_config=types.ThinkingConfig(thinking_budget=1024),
+                                                 response_mime_type="application/json",
+                                                 response_schema=list[Evaluation])
 
             # 发送请求
-            response = self.client.models.generate_content(
-                model="gemini-2.5-flash",
-                contents=prompt,
-                config={
-                    "response_mime_type": "application/json",
-                    "response_schema": list[Evaluation],
-                },
-            )
+            response = self.client.models.generate_content(model="gemini-2.5-flash", contents=prompt, config=config)
             return response.text
 
         except Exception as e:

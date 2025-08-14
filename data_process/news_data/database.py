@@ -4,7 +4,9 @@ from typing import List, Dict
 from data_process.news_data.news import Evaluation, GeminiFinanceAnalyzer
 import time
 from datetime import datetime, timedelta
-from math import exp
+import math
+import numpy as np
+import pandas as pd
 
 
 class NewsDBManager:
@@ -137,19 +139,26 @@ class NewsDBManager:
             pass
 
 
-def linear_decay(days_passed: int, max_days: int = 7) -> float:
-    """线性递减权重，7天内从1减到0，超过7天为0"""
-    if days_passed < 0 or days_passed > max_days:
+def exponential_decay(days_passed: int, half_life: int = 7) -> float:
+    """
+    指数衰减函数：影响随时间呈指数衰减，half_life 表示半衰期（多少天影响减半）
+    """
+    if days_passed < 0:
         return 0.0
-    return max(0.0, 1 - days_passed / max_days)
+    λ = math.log(2) / half_life  # 控制衰减速度
+    return math.exp(-λ * days_passed)
 
 
-def compute_scores(news_items: List[Dict], start_date: str, end_date: str, decay_days: int = 7) -> Dict[str, float]:
+def compute_scores(news_items: List[Evaluation], start_date: str, end_date: str,
+                   decay_days: int = 365) -> Dict[str, float]:
     """
     计算[start_date, end_date]内，结合news_items中新闻
     （考虑前decay_days天内的新闻事件）对区间综合评分。
     每条新闻对其发生后decay_days天内有影响，影响逐日递减。
     """
+    if not news_items:
+        return {"industry_policy": 0.0, "peer_competition": 0.0}
+
     start = datetime.strptime(start_date, "%Y-%m-%d")
     end = datetime.strptime(end_date, "%Y-%m-%d")
     window_start = start - timedelta(days=decay_days)
@@ -161,7 +170,7 @@ def compute_scores(news_items: List[Dict], start_date: str, end_date: str, decay
     daily_weights = [0.0] * total_days
 
     for item in news_items:
-        news_date = datetime.strptime(item["date"], "%Y-%m-%d")
+        news_date = datetime.strptime(item.date, "%Y-%m-%d")
         # 新闻必须发生在window_start到end之间，才算影响
         if not (window_start <= news_date <= end):
             continue
@@ -169,31 +178,28 @@ def compute_scores(news_items: List[Dict], start_date: str, end_date: str, decay
         # 计算新闻对预测区间内每天的影响
         for day_offset in range(total_days):
             current_day = start + timedelta(days=day_offset)
+            if current_day < news_date or current_day > news_date + timedelta(days=decay_days):
+                continue
             days_since_news = (current_day - news_date).days
-            weight = linear_decay(days_since_news, max_days=decay_days)
+            weight = exponential_decay(days_since_news)
             if weight <= 0:
                 continue
-            daily_policy_scores[day_offset] += item["industry_policy_score"] * weight
-            daily_competition_scores[day_offset] += item["peer_competition_score"] * weight
+            daily_policy_scores[day_offset] += item.industry_policy_score * weight
+            daily_competition_scores[day_offset] += item.peer_competition_score * weight
             daily_weights[day_offset] += weight
 
-    # 计算区间内的加权平均分数（每天的分数除以权重，防止权重为0）
-    weighted_policy_sum = 0.0
-    weighted_competition_sum = 0.0
-    total_weight_sum = 0.0
+    # 对区间内所有天的累计分数和累计权重求和
+    total_policy_score = sum(daily_policy_scores)
+    total_competition_score = sum(daily_competition_scores)
+    total_weight = sum(daily_weights)
 
-    for i in range(total_days):
-        if daily_weights[i] > 0:
-            weighted_policy_sum += daily_policy_scores[i] / daily_weights[i]
-            weighted_competition_sum += daily_competition_scores[i] / daily_weights[i]
-            total_weight_sum += 1
-
-    if total_weight_sum == 0:
+    # 计算整个区间的真实加权平均分
+    if total_weight == 0:
         return {"industry_policy": 0.0, "peer_competition": 0.0}
 
     return {
-        "industry_policy": weighted_policy_sum / total_weight_sum,
-        "peer_competition": weighted_competition_sum / total_weight_sum,
+        "industry_policy": total_policy_score / total_weight,
+        "peer_competition": total_competition_score / total_weight,
     }
 
 
@@ -201,5 +207,6 @@ def compute_scores(news_items: List[Dict], start_date: str, end_date: str, decay
 if __name__ == "__main__":
     # 创建数据库实例
     news_db = NewsDBManager(stock_code="NVDA.O")
-    results = news_db.get_evaluations(2025)
+    evaluations = news_db.get_evaluations(2025)
+    results = compute_scores(evaluations, "2025-04-20", "2025-08-20")
     print("results: ", results)
