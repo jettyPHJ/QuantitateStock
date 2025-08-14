@@ -23,60 +23,81 @@ class GeminiFinanceAnalyzer:
             raise ValueError("环境变量 'GEMINI_API_KEY' 未设置")
         self.client = genai.Client()
 
-    def create_news_prompt(self, stock_code: str, year: int) -> str:
-        news_num = 8
-        current_year, current_month = datetime.now().year, datetime.now().month
-        if year == current_year:
-            news_num = int(news_num * (current_month / 12))
+    def create_news_prompt(self, stock_code: str, year: int, month: int) -> str:
+        return f"""You are a top-tier financial analyst. Your task is to identify and analyze the top 3 most influential news from {month}_{year} that significantly impacted the stock price of "{stock_code}".
 
-        return f"""You are a financial news assistant. Please search and list the **top {news_num} most impactful industry-related news events in {year}** for the company or stock code {stock_code}.
+📌 OBJECTIVE
+From all news items published in the given month, select exactly 3 that had the largest actual impact on the stock's price. Selection must strictly follow the Impact Hierarchy below — if fewer than 3 events exist in higher tiers, fill remaining slots from lower tiers.
 
-- Focus on events that are highly likely to have a **direct or indirect impact** on the company.
-- Consider the following types of events:
-  - Major product or technology launches from the company or competitors
-  - Government policy changes, regulations, or subsidies affecting the industry
-  - Key personnel or leadership changes in the company or major competitors
-  - Significant M&A activity, strategic partnerships, or market expansion
-  - Supply chain disruptions or critical input price fluctuations
-  - Shifts in consumer demand or industry trends
-  - Relevant macroeconomic or geopolitical developments (e.g., tariffs, trade restrictions)
+🏗️ IMPACT HIERARCHY (from most direct to least):
+1. Industry & Policy  
+   - Industry-level disruptions (e.g., supply chain crisis, competitive threats)
+   - Regulatory actions, subsidies, investigations, antitrust moves
 
-No need to analyze or explain the impact yet. Just collect and list the news events in order of importance.
+2. Peer Competition  
+   - Product launches or failures by the company or its key competitors
+   - Major strategic moves by the company or its key competitors (M&A, price wars, leadership changes) that directly affect competitive landscape
 
-**Format**:
-1. Title: (Concise title)
-   Date: (format: YYYY-MM-DD or YYYY-MM-15 if unknown)
-   Summary: (A summary of the event under 50 words)
+3. Market & Sentiment  
+   - Influential analyst rating changes or price targets
+   - Reputable short-seller reports or major media investigations
+
+4. Macroeconomic / Geopolitical  
+   - Events like CPI shocks, rate changes, global conflict (only if clearly linked to the company)
+
+🧠 RULES FOR SELECTION:
+Step 1: Review all news items published in {month}_{year}. Discard any with negligible or no price impact.
+Step 2: Merge duplicates or ongoing threads into one if they represent the same price-moving event.
+Step 3: Sort remaining events by Impact Hierarchy first, then by magnitude of actual price reaction (largest absolute % move on the same or next trading day).
+Step 4: Select the top 3 after sorting. If fewer than 3 exist, still output exactly 3 by including the next highest tier.
+
+📝 OUTPUT FORMAT:
+Return exactly 3 items using this structure:
+
 ---
-2. ...
+**Title:** [Headline of the event]  
+**Date:** [YYYY-MM-DD or YYYY-MM-15 if unknown]  
+**Summary:** [Concise and factual summary of what happened]  
+**Impact Dimension:** [Choose one from: Company Fundamentals / Industry & Policy / Market & Sentiment / Macro & Geopolitics] 
+**Observed Price Move:** [% price change] 
+**Impact Analysis:** [Describe clearly how this caused stock price movement. Example: “Industry-wide chip shortage worsened → Raised ASPs across peers → Investors revised growth outlook upward → Stock rose.”]
+---
+
+🔒 BOUNDARY CONDITIONS:
+- Only use news published in {month}_{year} (publication date, not actual event occurrence date).
+- Avoid vague, speculative, or unverified information.
+- Precision and causality are more important than coverage
 """
 
     def create_scoring_prompt(self, stock_code: str, year: int, news: str) -> str:
-        return f"""You are a professional financial analyst. Given the following list of industry-related news summaries from {year} for the company or stock code {stock_code}, evaluate each event's impact in terms of:
+        return f"""You are a professional financial analyst. For each of the following news events from {year} related to the company or stock code "{stock_code}", please assess the impact **from two independent perspectives**:
 
-1. **Industry Policy Score** (-1.0 to +1.0)  
-2. **Peer Competition Score** (-1.0 to +1.0)  
-3. **Impact Rationale**: A brief explanation of the logical chain of influence this event may have on the company’s performance or positioning.
+1. **Industry Policy Impact** (range: -1.0 to +1.0)  
+2. **Peer Competition Impact** (range: -1.0 to +1.0)
 
-Your goal is to assess how each event may affect the company through regulatory, policy, or competitive mechanisms. Keep the rationale concise, focusing on **why and how** the event could lead to positive or negative consequences.
+Also provide a short, factual explanation for each score, strictly focusing on **how this event could affect the company through industry policy or competitive pressure**.
 
----
+🧠 **Key Instructions**:
+- Keep the explanation concise (1-2 sentences per dimension).
+- **Do not generalize or speculate beyond the content of the event.**
+- **Only assign strong scores (≥ |0.6|)** when the impact is **clear, material, and direct**.
+- Evaluate each dimension **separately**, even if the event has no effect on one of them.
 
-Scoring Standards:
+🎯 **Scoring Standards**:
 
-**Industry Policy Score**:  
-- **[-1.0 to -0.6]**: Severely negative policy (e.g., sanctions, bans, war, hostile regulation)  
-- **[-0.5 to -0.3]**: Clearly unfavorable (e.g., tax hikes, strict compliance burdens, removal of subsidies)  
-- **[-0.2 to +0.2]**: Neutral or negligible  
-- **[+0.3 to +0.5]**: Favorable (e.g., moderate policy support or incentives)  
-- **[+0.6 to +1.0]**: Strongly favorable (e.g., strategic alignment with government priorities, major national investment)  
+**Industry Policy Impact (Regulatory / Subsidy / Macroeconomic)**  
+- `+0.6 to +1.0`: Major favorable policy (e.g., heavy national investment, strategic alignment)  
+- `+0.3 to +0.5`: Mildly favorable policy or macro tailwind  
+- `-0.2 to +0.2`: Neutral / negligible / indirect  
+- `-0.3 to -0.5`: Policy headwind (e.g., regulation, reduced support)  
+- `-0.6 to -1.0`: Hostile or damaging policy (e.g., sanctions, exclusion, trade war)
 
-**Peer Competition Score**:  
-- **[-1.0 to -0.6]**: Competitive environment worsens sharply (e.g., new dominant rival, major loss of market share)  
-- **[-0.5 to -0.3]**: Strengthening competitors (e.g., product breakthroughs, cost advantages)  
-- **[-0.2 to +0.2]**: Neutral / No material change  
-- **[+0.3 to +0.5]**: Eased competition (e.g., competitor setbacks, market expansion)  
-- **[+0.6 to +1.0]**: Competitive dominance (e.g., rivals exit, monopoly-like advantage)
+**Peer Competition Impact (Market Positioning / Rival Actions)**  
+- `+0.6 to +1.0`: Significant competitive gain (e.g., monopoly, rivals fail)  
+- `+0.3 to +0.5`: Moderate gain (e.g., rivals delay product, company expands)  
+- `-0.2 to +0.2`: Neutral / status quo  
+- `-0.3 to -0.5`: Moderate loss (e.g., new entrant, rival product launch)  
+- `-0.6 to -1.0`: Major loss (e.g., competitor dominance, pricing war)
 
 ---
 
@@ -85,17 +106,21 @@ List of industry-related news:
 """
 
     # 获取公司新闻要点
-    def get_company_news(self, stock_code: str, year: int) -> str:
-        prompt = self.create_news_prompt(stock_code, year)
+    def get_company_news(self, stock_code: str, year: int, month: int) -> str:
+        prompt = self.create_news_prompt(stock_code, year, month)
 
         try:
             # 启用 Google 搜索工具
             grounding_tool = types.Tool(google_search=types.GoogleSearch())
 
             # 配置生成设置，包括联网搜索
-            config = types.GenerateContentConfig(temperature=0.1, max_output_tokens=2048, top_p=0.7, top_k=20,
-                                                 tools=[grounding_tool],
-                                                 thinking_config=types.ThinkingConfig(thinking_budget=1024))
+            config = types.GenerateContentConfig(
+                temperature=0.1,
+                max_output_tokens=2048,
+                top_p=0.7,
+                tools=[grounding_tool],
+                thinking_config=types.ThinkingConfig(thinking_budget=128),
+            )
 
             # 发送请求
             response = self.client.models.generate_content(
@@ -118,8 +143,8 @@ List of industry-related news:
 
         try:
             # 配置生成设置
-            config = types.GenerateContentConfig(temperature=0.4, max_output_tokens=2048, top_p=0.85, top_k=40,
-                                                 thinking_config=types.ThinkingConfig(thinking_budget=1024),
+            config = types.GenerateContentConfig(temperature=0.2, max_output_tokens=2048, top_p=0.3,
+                                                 thinking_config=types.ThinkingConfig(thinking_budget=256),
                                                  response_mime_type="application/json",
                                                  response_schema=list[Evaluation])
 
@@ -146,9 +171,9 @@ if __name__ == "__main__":
     # 创建分析器实例
     analyzer = GeminiFinanceAnalyzer()
     # 获取新闻评分
-    news = analyzer.get_company_news('NVDA.O', 2025)
+    news = analyzer.get_company_news('NVDA.O', 2025, 4)
     print('线上大模型回复：', news)
-    _evaluations = analyzer.evaluate_news('NVDA.O', 2025, news)
-    print('分数：', _evaluations)
-    evaluations = analyzer.deserialize_evaluations(_evaluations)
-    print('反序列化：', evaluations)
+    # _evaluations = analyzer.evaluate_news('NVDA.O', 2025, news)
+    # print('分数：', _evaluations)
+    # evaluations = analyzer.deserialize_evaluations(_evaluations)
+    # print('反序列化：', evaluations)

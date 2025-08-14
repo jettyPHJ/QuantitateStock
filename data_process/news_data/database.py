@@ -5,8 +5,6 @@ from data_process.news_data.news import Evaluation, GeminiFinanceAnalyzer
 import time
 from datetime import datetime, timedelta
 import math
-import numpy as np
-import pandas as pd
 
 
 class NewsDBManager:
@@ -207,6 +205,6 @@ def compute_scores(news_items: List[Evaluation], start_date: str, end_date: str,
 if __name__ == "__main__":
     # 创建数据库实例
     news_db = NewsDBManager(stock_code="NVDA.O")
-    evaluations = news_db.get_evaluations(2025)
-    results = compute_scores(evaluations, "2025-04-20", "2025-08-20")
+    evaluations = news_db.get_evaluations(2024)
+    results = compute_scores(evaluations, "2024-01-20", "2024-06-20")
     print("results: ", results)
