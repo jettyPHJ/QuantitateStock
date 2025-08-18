@@ -221,10 +221,11 @@ def get_pct_chg(stock_code: str, start_date: str, end_date: str, calendar: str =
     dates = wsd_result.Times  # List[datetime]
     pct_chg_list = wsd_result.Data[0]  # 只请求了一个字段，取第一列
 
-    # 转换为字符串格式的日期
+    # 转换为字符串格式的日期,并将涨跌幅改为百分比，保留两位小数
     str_dates = [d.strftime("%Y-%m-%d") for d in dates]
+    pct_chg_percent = [f"{round(val, 2)}%" for val in pct_chg_list]  # Wind返回的本身就是%，直接保留两位小数
 
-    return list(zip(str_dates, pct_chg_list))
+    return list(zip(str_dates, pct_chg_percent))
 
 
 # --------------------- 测试入口 ---------------------
