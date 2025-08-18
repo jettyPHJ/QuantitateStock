@@ -6,6 +6,7 @@ from enum import Enum
 import time
 import math
 import data_process.finance_data.feature as ft
+from typing import List, Tuple
 
 w.start()
 
@@ -200,9 +201,37 @@ def get_stock_codes(block_code: BlockCode):
     return result_list
 
 
+# 获取指定日期范围内单只股票的涨跌幅序列（含日期）
+def get_pct_chg(stock_code: str, start_date: str, end_date: str, calendar: str = "NASDAQ",
+                price_adj: str = "F") -> List[Tuple[datetime.date, float]]:
+    """
+    获取单只股票在指定日期区间的涨跌幅序列（包含日期）。
+
+    :param stock_code: 股票代码，例如 "NVDA.O"
+    :param start_date: 开始日期（字符串格式 "YYYY-MM-DD"）
+    :param end_date: 结束日期（字符串格式 "YYYY-MM-DD"）
+    :param calendar: 交易所日历（默认：NASDAQ）
+    :param price_adj: 复权方式（默认：前复权 F）
+    :return: List[Tuple[date, pct_chg]]
+    """
+    options = f"TradingCalendar={calendar};PriceAdj={price_adj}"
+    wsd_result = check_wind_data(w.wsd(stock_code, "pct_chg", start_date, end_date, options),
+                                 context=f"获取 {stock_code} 从 {start_date} 到 {end_date} 的涨跌幅")
+
+    dates = wsd_result.Times  # List[datetime]
+    pct_chg_list = wsd_result.Data[0]  # 只请求了一个字段，取第一列
+
+    # 转换为字符串格式的日期
+    str_dates = [d.strftime("%Y-%m-%d") for d in dates]
+
+    return list(zip(str_dates, pct_chg_list))
+
+
 # --------------------- 测试入口 ---------------------
 if __name__ == "__main__":
-    fetcher = WindFinancialDataFetcher(stock_code="NVDA.O", block_code=BlockCode.US_CHIP)
-    data = fetcher.get_data()
-    print(data)
-    print(get_stock_codes(BlockCode.US_CHIP))
+    # fetcher = WindFinancialDataFetcher(stock_code="NVDA.O", block_code=BlockCode.US_CHIP)
+    # data = fetcher.get_data()
+    # print(data)
+    # print(get_stock_codes(BlockCode.US_CHIP))
+    res = get_pct_chg_series("NVDA.O", "2025-06-19", "2025-07-19")
+    print("res:", res)
