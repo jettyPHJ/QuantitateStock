@@ -135,7 +135,7 @@ List of industry-related news:
 
             # 发送请求
             response = self.client.models.generate_content(
-                model="gemini-2.5-flash",
+                model="gemini-2.5-pro",
                 contents=prompt,
                 config=config,
             )
@@ -182,7 +182,7 @@ if __name__ == "__main__":
     # 创建分析器实例
     analyzer = GeminiFinanceAnalyzer()
     # 获取新闻评分
-    news = analyzer.get_company_news('NVDA.O', 2025, 4)
+    news = analyzer.get_company_news('NVDA.O', 2025, 3)
     print('线上大模型回复：', news)
     # _evaluations = analyzer.evaluate_news('NVDA.O', 2025, news)
     # print('分数：', _evaluations)

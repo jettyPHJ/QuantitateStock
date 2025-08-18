@@ -233,5 +233,5 @@ if __name__ == "__main__":
     # data = fetcher.get_data()
     # print(data)
     # print(get_stock_codes(BlockCode.US_CHIP))
-    res = get_pct_chg_series("NVDA.O", "2025-06-19", "2025-07-19")
+    res = get_pct_chg("NVDA.O", "2025-06-19", "2025-07-19")
     print("res:", res)
