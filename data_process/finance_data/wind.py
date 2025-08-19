@@ -219,13 +219,12 @@ def get_pct_chg(stock_code: str, start_date: str, end_date: str, calendar: str =
                                  context=f"获取 {stock_code} 从 {start_date} 到 {end_date} 的涨跌幅")
 
     dates = wsd_result.Times  # List[datetime]
-    pct_chg_list = wsd_result.Data[0]  # 只请求了一个字段，取第一列
+    pct_chg_list = wsd_result.Data[0]  # List[float]
 
-    # 转换为字符串格式的日期,并将涨跌幅改为百分比，保留两位小数
-    str_dates = [d.strftime("%Y-%m-%d") for d in dates]
-    pct_chg_percent = [f"{round(val, 2)}%" for val in pct_chg_list]  # Wind返回的本身就是%，直接保留两位小数
+    # 转换为 datetime.date 和保留两位小数的浮点数
+    result = [(d, round(val, 2)) for d, val in zip(dates, pct_chg_list)]
 
-    return list(zip(str_dates, pct_chg_percent))
+    return result
 
 
 # --------------------- 测试入口 ---------------------

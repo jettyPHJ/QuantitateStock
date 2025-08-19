@@ -1,4 +1,6 @@
 from pydantic import BaseModel
+from typing import List, Tuple
+from datetime import date, timedelta
 
 
 class Evaluation(BaseModel):
@@ -11,30 +13,45 @@ class Evaluation(BaseModel):
     reason: str
 
 
-def news_prompt(stock_code: str, year: int, month: int, price_changes: list) -> str:
-    return f"""You are a top-tier financial analyst. Your task is to identify and analyze the top 2 most influential news from {month}_{year} that significantly impacted the stock price of "{stock_code}".
+def news_prompt(stock_code: str, year: int, month: int, price_changes: List[Tuple[date, float]]) -> str:
+    max_up_day = max(price_changes, key=lambda x: x[1])
+    max_down_day = min(price_changes, key=lambda x: x[1])
+
+    up_date_str = max_up_day[0].strftime("%Y-%m-%d")
+    up_prev_str = (max_up_day[0] - timedelta(days=1)).strftime("%Y-%m-%d")
+    up_pct = f"+{max_up_day[1]:.2f}%"
+
+    down_date_str = max_down_day[0].strftime("%Y-%m-%d")
+    down_prev_str = (max_down_day[0] - timedelta(days=1)).strftime("%Y-%m-%d")
+    down_pct = f"{max_down_day[1]:.2f}%"
+
+    return f"""You are a top-tier financial analyst. Your task is to identify and analyze the 2 most influential news events that clearly explain the **largest positive** and **largest negative** stock price moves for "{stock_code}" in {month}_{year}.
 
 📈 HISTORICAL PRICE MOVES:
-Here is the actual daily % change in closing price for {stock_code} in {month}_{year}:
+The actual daily % change in closing price for {stock_code} in {month}_{year} is shown below:
 {price_changes}
 
-📌 OBJECTIVE:
-From all news items published during {month}_{year}, select exactly 2 events:
-- 1 news items with a **clear positive impact** on the stock’s price.
-- 1 news items with a **clear negative impact** on the stock’s price.
+🔍 FOCUS DATES:
+Only consider news **published on the following dates**:
+- {up_prev_str} and {up_date_str} for the **positive price move of {up_pct}**
+- {down_prev_str} and {down_date_str} for the **negative price move of {down_pct}**
 
-Use the daily price changes above to identify and validate potential causal links between news and price movement.
+📌 OBJECTIVE:
+From the news published on these 4 days only, select:
+- 1 news item that **positively impacted** the stock (linked to the {up_date_str} move).
+- 1 news item that **negatively impacted** the stock (linked to the {down_date_str} move).
 
 🧠 GUIDANCE FOR SELECTION:
-- Prioritize events that clearly explain large price swings (Match each news item to the largest same-day or next-day price change that logically aligns).
-- Merge duplicate or ongoing news threads into a single summarized item.
+- Match each news item to the same-day or next-day price move it plausibly influenced.
+- Summarize the most impactful and clearly causal events.
+- Avoid duplicative or speculative content.
 
 📝 OUTPUT FORMAT:
-Return exactly 2 items in this structure:
+Return exactly 2 items in the following format:
 
 ---
-**Title:** [Headline of the event]  
-**Date:** [YYYY-MM-DD]  
+**Title:** [Headline of the news]  
+**Date:** [YYYY-MM-DD, news published date]  
 **Summary:** [Concise and factual summary of what happened]  
 **Impact:** [Positive / Negative]  
 **Observed Price Move:** [% price change]  
@@ -42,9 +59,9 @@ Return exactly 2 items in this structure:
 ---
 
 🔒 BOUNDARY CONDITIONS:
-- Only use news published in {month}_{year} (publication date, not actual event occurrence date).
-- Avoid vague, speculative, or unverified information.
-- Precision and causality are more important than coverage.
+- Only use news **published on {up_prev_str}, {up_date_str}, {down_prev_str}, or {down_date_str}**.
+- Do not include news from other dates.
+- Prioritize clarity, causality, and factual accuracy.
 """
 
 
@@ -69,22 +86,27 @@ def scoring_prompt(stock_code: str, year: int, month: int, news: str) -> str:
 
 🧠 **Instructions**:
 
-- **Each dimension must be scored separately** on a scale from -1.0 to +1.0.
+- **Each dimension must be scored separately** on a scale from -1.0 to +1.0, in increments of 0.2.
 - Provide a **clear, specific, and logically sound explanation** for each score.  
 - Explanation should **explicitly describe the cause-effect chain**:  
-  “Event ➜ triggers X ➜ which causes Y ➜ which leads to impact Z on the company.”
+  “Event ➜ triggers X ➜ which causes Y ➜ which leads to impact Z on the company.”  
 - Avoid vague terms like “bad for the company” or “market reacted negatively”. Always explain **why**.
+- If a dimension is not affected, score `0.0` and simply state why.
+- Use strong scores (±0.8 / ±1.0) only when the effect is **direct, material, and observable**.
 
-- If a dimension is not affected, score `0.0` and simplely state why.
-- Only use strong scores (≥ |0.6|) when the effect is **direct, material, and observable**.
+📏 **Scoring Scale** (discrete, applies to all dimensions):
 
-📏 **Scoring Scale** (applies to all dimensions):
-
-- `+0.6 to +1.0`: Strong positive, direct and significant impact  
-- `+0.3 to +0.5`: Moderate positive impact  
-- `-0.2 to +0.2`: Neutral / marginal / indirect  
-- `-0.3 to -0.5`: Moderate negative impact  
-- `-0.6 to -1.0`: Strong negative, direct and significant impact  
+- `+1.0`: Extreme positive — direct and major benefit to core business, valuation, or competitive standing  
+- `+0.8`: Strong positive — very favorable, clearly advantageous and likely to affect stock meaningfully  
+- `+0.6`: Moderate positive — likely beneficial, but not game-changing  
+- `+0.4`: Mild positive — small upside, possibly indirect or long-term  
+- `+0.2`: Minimal positive — slight advantage or weak signal  
+- ` 0.0`: No meaningful impact — neutral or unrelated  
+- `-0.2`: Minimal negative — slight risk or weak concern  
+- `-0.4`: Mild negative — small downside, possibly indirect or temporary  
+- `-0.6`: Moderate negative — likely harmful to near-term outlook or operations  
+- `-0.8`: Strong negative — clearly detrimental and likely to influence stock materially  
+- `-1.0`: Extreme negative — direct and significant threat to fundamentals or market value
 
 ---
 
