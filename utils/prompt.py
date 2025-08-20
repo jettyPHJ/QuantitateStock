@@ -1,6 +1,8 @@
 from pydantic import BaseModel
-from typing import List, Tuple
-from datetime import date, timedelta
+from typing import List, Optional, Literal
+from datetime import datetime
+import numpy as np
+from dataclasses import dataclass
 
 
 class Evaluation(BaseModel):
@@ -13,17 +15,74 @@ class Evaluation(BaseModel):
     reason: str
 
 
-def news_prompt(stock_code: str, year: int, month: int, price_changes: List[Tuple[date, float]]) -> str:
-    max_up_day = max(price_changes, key=lambda x: x[1])
-    max_down_day = min(price_changes, key=lambda x: x[1])
+@dataclass
+class PriceChangeRecord:
+    date: datetime.date
+    stock_pct_chg: Optional[float] = None
+    block_pct_chg: Optional[float] = None
 
-    up_date_str = max_up_day[0].strftime("%Y-%m-%d")
-    up_prev_str = (max_up_day[0] - timedelta(days=1)).strftime("%Y-%m-%d")
-    up_pct = f"+{max_up_day[1]:.2f}%"
 
-    down_date_str = max_down_day[0].strftime("%Y-%m-%d")
-    down_prev_str = (max_down_day[0] - timedelta(days=1)).strftime("%Y-%m-%d")
-    down_pct = f"{max_down_day[1]:.2f}%"
+@dataclass
+class AttributionRecord:
+    date: datetime.date
+    stock_pct_chg: float
+    block_pct_chg: float
+    direction: Literal["positive", "negative"]
+    divergence: Literal["same_direction", "opposite_direction"]
+    alignment_type: Literal["aligned", "amplified", "divergent"]
+    likely_causes: List[str]
+
+
+def get_analyse_records(price_change_records: List[PriceChangeRecord]) -> List[AttributionRecord]:
+    """
+    筛选出个股涨跌幅在前10%且涨跌幅绝对值不小于5%的记录，并进行归因分析。
+    """
+    if not price_change_records:
+        return []
+
+    valid_records = [r for r in price_change_records if r.stock_pct_chg is not None]
+    if not valid_records:
+        return []
+
+    stock_changes = [r.stock_pct_chg for r in valid_records]
+    abs_stock_changes = np.abs(stock_changes)
+    top_10_percentile = np.percentile(abs_stock_changes, 90)
+
+    analyse_records = [
+        r for r in valid_records if abs(r.stock_pct_chg) >= 5 and abs(r.stock_pct_chg) >= top_10_percentile
+    ]
+
+    attribution_records: List[AttributionRecord] = []
+    amplified_threshold = 3.0  # 可调参数
+
+    for r in analyse_records:
+        if r.stock_pct_chg is None or r.block_pct_chg is None:
+            continue
+
+        direction = "positive" if r.stock_pct_chg > 0 else "negative"
+        divergence = "same_direction" if r.stock_pct_chg * r.block_pct_chg >= 0 else "opposite_direction"
+        pct_diff = abs(r.stock_pct_chg - r.block_pct_chg)
+
+        if divergence == "opposite_direction":
+            alignment_type = "divergent"
+            likely_causes = ["Major Corporate News", "Product/Tech Breakthrough", "Unusual Trading Activity"]
+        else:
+            if pct_diff < amplified_threshold:
+                alignment_type = "aligned"
+                likely_causes = ["Macroeconomic Factors", "Market Sentiment", "Industry/Sector News"]
+            else:
+                alignment_type = "amplified"
+                likely_causes = ["Company Specific Event (Amplified by Market)", "Financial Results", "Management News"]
+
+        attribution_records.append(
+            AttributionRecord(date=r.date, stock_pct_chg=r.stock_pct_chg, block_pct_chg=r.block_pct_chg,
+                              direction=direction, divergence=divergence, alignment_type=alignment_type,
+                              likely_causes=likely_causes))
+
+    return attribution_records
+
+
+def news_prompt(stock_code: str, record: AttributionRecord) -> str:
 
     return f"""You are a top-tier financial analyst. Your task is to identify and analyze the 2 most influential news events that clearly explain the **largest positive** and **largest negative** stock price moves for "{stock_code}" in {month}_{year}.
 

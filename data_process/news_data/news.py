@@ -3,9 +3,8 @@ from google import genai
 from google.genai import types
 from typing import List, Optional
 from pydantic import TypeAdapter
-from data_process.finance_data.wind import get_pct_chg
-import calendar
-from utils.prompt import news_prompt, scoring_prompt, Evaluation
+from data_process.finance_data.wind import get_price_change_records
+from utils.prompt import news_prompt, scoring_prompt, get_analyse_records, Evaluation, AttributionRecord
 
 
 class GeminiFinanceAnalyzer:
@@ -16,12 +15,8 @@ class GeminiFinanceAnalyzer:
             raise ValueError("环境变量 'GEMINI_API_KEY' 未设置")
         self.client = genai.Client()
 
-    def create_news_prompt(self, stock_code: str, year: int, month: int) -> str:
-        last_day = calendar.monthrange(year, month)[1]
-        start_date = f"{year}-{month:02d}-01"
-        end_date = f"{year}-{month:02d}-{last_day:02d}"
-        price_changes = get_pct_chg(stock_code, start_date, end_date)
-        return news_prompt(stock_code, year, month, price_changes)
+    def create_news_prompt(self, stock_code: str, record: AttributionRecord) -> str:
+        return news_prompt(stock_code, record)
 
     def create_scoring_prompt(self, stock_code: str, year: int, month: int, news: str) -> str:
         return scoring_prompt(stock_code, year, month, news)
@@ -33,33 +28,38 @@ class GeminiFinanceAnalyzer:
             raise ValueError(f"[{context}] 检测到的 'title' 数量不足 2（实际数量为 {count}）")
 
     # 获取公司新闻要点
-    def get_company_news(self, stock_code: str, year: int, month: int) -> str:
-        prompt = self.create_news_prompt(stock_code, year, month)
+    def get_company_news(self, block_code: str, stock_code: str, year: int) -> str:
+        price_changes = get_price_change_records(block_code, stock_code, f"{year}-01-01", f"{year}-12-31")
+        analyse_records = get_analyse_records(price_changes)
 
-        try:
-            # 启用 Google 搜索工具
-            grounding_tool = types.Tool(google_search=types.GoogleSearch())
+        for record in analyse_records:
 
-            # 配置生成设置，包括联网搜索
-            config = types.GenerateContentConfig(
-                temperature=0.0,
-                max_output_tokens=2048,
-                tools=[grounding_tool],
-                thinking_config=types.ThinkingConfig(thinking_budget=128),
-            )
+            prompt = self.create_news_prompt(stock_code, record)
 
-            # 发送请求
-            response = self.client.models.generate_content(
-                model="gemini-2.5-flash",
-                contents=prompt,
-                config=config,
-            )
+            try:
+                # 启用 Google 搜索工具
+                grounding_tool = types.Tool(google_search=types.GoogleSearch())
 
-            self.check_title_count(response.text, f"{stock_code}-{year}_{month} 新闻检索")
-            return response.text
+                # 配置生成设置，包括联网搜索
+                config = types.GenerateContentConfig(
+                    temperature=0.0,
+                    max_output_tokens=2048,
+                    tools=[grounding_tool],
+                    thinking_config=types.ThinkingConfig(thinking_budget=128),
+                )
 
-        except Exception as e:
-            print(f"API 调用失败: {e}")
+                # 发送请求
+                response = self.client.models.generate_content(
+                    model="gemini-2.5-flash",
+                    contents=prompt,
+                    config=config,
+                )
+
+                self.check_title_count(response.text, f"{stock_code}-{year} 新闻检索")
+                return response.text
+
+            except Exception as e:
+                print(f"API 调用失败: {e}")
         return None
 
     # 评估新闻并输出结构化数据的字符串

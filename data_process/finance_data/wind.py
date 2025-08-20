@@ -6,7 +6,8 @@ from enum import Enum
 import time
 import math
 import data_process.finance_data.feature as ft
-from typing import List, Tuple
+from typing import List, Optional
+from utils.prompt import PriceChangeRecord
 
 w.start()
 
@@ -201,30 +202,64 @@ def get_stock_codes(block_code: BlockCode):
     return result_list
 
 
-# 获取指定日期范围内单只股票的涨跌幅序列（含日期）
-def get_pct_chg(stock_code: str, start_date: str, end_date: str, calendar: str = "NASDAQ",
-                price_adj: str = "F") -> List[Tuple[datetime.date, float]]:
+def get_price_change_records(start_date: str, end_date: str, stock_code: Optional[str] = None,
+                             block_code: Optional[str] = None, calendar: str = "NASDAQ",
+                             price_adj: str = "F") -> List[PriceChangeRecord]:
     """
-    获取单只股票在指定日期区间的涨跌幅序列（包含日期）。
+    获取指定日期范围内某股票和/或板块的涨跌幅序列（含日期），合并成统一结构返回。
 
-    :param stock_code: 股票代码，例如 "NVDA.O"
-    :param start_date: 开始日期（字符串格式 "YYYY-MM-DD"）
-    :param end_date: 结束日期（字符串格式 "YYYY-MM-DD"）
-    :param calendar: 交易所日历（默认：NASDAQ）
-    :param price_adj: 复权方式（默认：前复权 F）
-    :return: List[Tuple[date, pct_chg]]
+    :param start_date: 开始日期 "YYYY-MM-DD"
+    :param end_date: 结束日期 "YYYY-MM-DD"
+    :param stock_code: 可选，股票代码
+    :param block_code: 可选，板块代码
+    :param calendar: Wind交易日历
+    :param price_adj: 股票复权方式，默认前复权
+    :return: List[PriceChangeRecord]
     """
-    options = f"TradingCalendar={calendar};PriceAdj={price_adj}"
-    wsd_result = check_wind_data(w.wsd(stock_code, "pct_chg", start_date, end_date, options),
-                                 context=f"获取 {stock_code} 从 {start_date} 到 {end_date} 的涨跌幅")
+    if not stock_code and not block_code:
+        raise ValueError("必须提供至少一个 stock_code 或 block_code")
 
-    dates = wsd_result.Times  # List[datetime]
-    pct_chg_list = wsd_result.Data[0]  # List[float]
+    result_dict = {}
 
-    # 转换为 datetime.date 和保留两位小数的浮点数
-    result = [(d, round(val, 2)) for d, val in zip(dates, pct_chg_list)]
+    # 处理个股涨跌幅
+    if stock_code:
+        options = f"TradingCalendar={calendar};PriceAdj={price_adj}"
+        wsd_result = check_wind_data(w.wsd(stock_code, "pct_chg", start_date, end_date, options),
+                                     context=f"获取 {stock_code} 涨跌幅")
+        for d, val in zip(wsd_result.Times, wsd_result.Data[0]):
+            result_dict.setdefault(d.date(), PriceChangeRecord(date=d.date()))
+            result_dict[d.date()].stock_pct_chg = round(val, 2) if val is not None else None
 
-    return result
+    # 处理板块涨跌幅
+    if block_code:
+        buffer_days = 7
+        query_start = (datetime.strptime(start_date, "%Y-%m-%d") - timedelta(days=buffer_days)).strftime("%Y-%m-%d")
+        options = f"TradingCalendar={calendar};DynamicTime=0"
+        ws_result = w.wses(block_code, "sec_close_avg", query_start, end_date, options)
+
+        if ws_result.ErrorCode != 0:
+            raise RuntimeError(f"Wind请求失败，错误码 {ws_result.ErrorCode}")
+
+        dates = ws_result.Times
+        prices = ws_result.Data[0]
+        start_dt = datetime.strptime(start_date, "%Y-%m-%d").date()
+        index = next((i for i, d in enumerate(dates) if d.date() >= start_dt), None)
+
+        if index is None or index == 0:
+            raise ValueError("无法定位 start_date 或缺少其前一个交易日数据")
+
+        for i in range(index, len(dates)):
+            prev_price = prices[i - 1]
+            curr_price = prices[i]
+            if prev_price is None or curr_price is None:
+                continue
+            pct_chg = round((curr_price - prev_price) / prev_price * 100, 2)
+            date = dates[i].date()
+            result_dict.setdefault(date, PriceChangeRecord(date=date))
+            result_dict[date].block_pct_chg = pct_chg
+
+    # 返回按日期排序后的列表
+    return [result_dict[k] for k in sorted(result_dict.keys())]
 
 
 # --------------------- 测试入口 ---------------------
