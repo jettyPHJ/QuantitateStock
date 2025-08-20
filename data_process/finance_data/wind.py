@@ -202,9 +202,8 @@ def get_stock_codes(block_code: BlockCode):
     return result_list
 
 
-def get_price_change_records(start_date: str, end_date: str, stock_code: Optional[str] = None,
-                             block_code: Optional[str] = None, calendar: str = "NASDAQ",
-                             price_adj: str = "F") -> List[PriceChangeRecord]:
+def get_price_change_records(stock_code: str, block_code: str = None, start_date: str = "", end_date: str = "",
+                             calendar: str = "NASDAQ", price_adj: str = "F") -> List[PriceChangeRecord]:
     """
     获取指定日期范围内某股票和/或板块的涨跌幅序列（含日期），合并成统一结构返回。
 
@@ -227,14 +226,14 @@ def get_price_change_records(start_date: str, end_date: str, stock_code: Optiona
         wsd_result = check_wind_data(w.wsd(stock_code, "pct_chg", start_date, end_date, options),
                                      context=f"获取 {stock_code} 涨跌幅")
         for d, val in zip(wsd_result.Times, wsd_result.Data[0]):
-            result_dict.setdefault(d.date(), PriceChangeRecord(date=d.date()))
-            result_dict[d.date()].stock_pct_chg = round(val, 2) if val is not None else None
+            result_dict.setdefault(d, PriceChangeRecord(date=d))
+            result_dict[d].stock_pct_chg = round(val, 2) if val is not None else None
 
     # 处理板块涨跌幅
     if block_code:
         buffer_days = 7
         query_start = (datetime.strptime(start_date, "%Y-%m-%d") - timedelta(days=buffer_days)).strftime("%Y-%m-%d")
-        options = f"TradingCalendar={calendar};DynamicTime=0"
+        options = "TradingCalendar=NYSE"
         ws_result = w.wses(block_code, "sec_close_avg", query_start, end_date, options)
 
         if ws_result.ErrorCode != 0:
@@ -243,7 +242,7 @@ def get_price_change_records(start_date: str, end_date: str, stock_code: Optiona
         dates = ws_result.Times
         prices = ws_result.Data[0]
         start_dt = datetime.strptime(start_date, "%Y-%m-%d").date()
-        index = next((i for i, d in enumerate(dates) if d.date() >= start_dt), None)
+        index = next((i for i, d in enumerate(dates) if d >= start_dt), None)
 
         if index is None or index == 0:
             raise ValueError("无法定位 start_date 或缺少其前一个交易日数据")
@@ -254,7 +253,7 @@ def get_price_change_records(start_date: str, end_date: str, stock_code: Optiona
             if prev_price is None or curr_price is None:
                 continue
             pct_chg = round((curr_price - prev_price) / prev_price * 100, 2)
-            date = dates[i].date()
+            date = dates[i]
             result_dict.setdefault(date, PriceChangeRecord(date=date))
             result_dict[date].block_pct_chg = pct_chg
 
@@ -263,10 +262,10 @@ def get_price_change_records(start_date: str, end_date: str, stock_code: Optiona
 
 
 # --------------------- 测试入口 ---------------------
-if __name__ == "__main__":
-    # fetcher = WindFinancialDataFetcher(stock_code="NVDA.O", block_code=BlockCode.US_CHIP)
-    # data = fetcher.get_data()
-    # print(data)
-    # print(get_stock_codes(BlockCode.US_CHIP))
-    res = get_pct_chg("NVDA.O", "2025-06-19", "2025-07-19")
-    print("res:", res)
+# if __name__ == "__main__":
+#     # fetcher = WindFinancialDataFetcher(stock_code="NVDA.O", block_code=BlockCode.US_CHIP)
+#     # data = fetcher.get_data()
+#     # print(data)
+#     # print(get_stock_codes(BlockCode.US_CHIP))
+#     # res = get_price_change_records("NVDA.O", "2025-06-19", "2025-07-19")
+#     # print("res:", res)

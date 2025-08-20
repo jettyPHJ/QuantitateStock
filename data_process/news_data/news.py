@@ -24,12 +24,12 @@ class GeminiFinanceAnalyzer:
     # 回话检查函数
     def check_title_count(self, text: str, context: str) -> None:
         count = text.lower().count("title")
-        if count < 2:
-            raise ValueError(f"[{context}] 检测到的 'title' 数量不足 2（实际数量为 {count}）")
+        if count < 1:
+            raise ValueError(f"[{context}] 未检测到 'title'，模型回复内容异常")
 
     # 获取公司新闻要点
     def get_company_news(self, block_code: str, stock_code: str, year: int) -> str:
-        price_changes = get_price_change_records(block_code, stock_code, f"{year}-01-01", f"{year}-12-31")
+        price_changes = get_price_change_records(stock_code, block_code, f"{year}-08-01", f"{year}-12-31")
         analyse_records = get_analyse_records(price_changes)
 
         for record in analyse_records:
@@ -110,9 +110,9 @@ if __name__ == "__main__":
     # 创建分析器实例
     analyzer = GeminiFinanceAnalyzer()
     # 获取新闻评分
-    news = analyzer.get_company_news('NVDA.O', 2025, 3)
+    news = analyzer.get_company_news('1000041891000000', 'NVDA.O', 2024)
     print('线上大模型回复：', news)
-    _evaluations = analyzer.evaluate_news('NVDA.O', 2025, 3, news)
-    print('分数：', _evaluations)
+    # _evaluations = analyzer.evaluate_news('NVDA.O', 2025, 3, news)
+    # print('分数：', _evaluations)
     # evaluations = analyzer.deserialize_evaluations(_evaluations)
     # print('反序列化：', evaluations)

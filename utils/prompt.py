@@ -1,6 +1,6 @@
 from pydantic import BaseModel
 from typing import List, Optional, Literal
-from datetime import datetime
+import datetime
 import numpy as np
 from dataclasses import dataclass
 
@@ -83,45 +83,53 @@ def get_analyse_records(price_change_records: List[PriceChangeRecord]) -> List[A
 
 
 def news_prompt(stock_code: str, record: AttributionRecord) -> str:
+    """
+    根据 AttributionRecord 生成用于新闻归因分析的 Prompt。
+    要求模型在分析日期的前三天（含当日）范围内，找出导致股价大幅波动的主要新闻。
+    """
+    date_str = record.date.strftime("%Y-%m-%d")
+    direction_text = "rose" if record.direction == "positive" else "fell"
 
-    return f"""You are a top-tier financial analyst. Your task is to identify and analyze the 2 most influential news events that clearly explain the **largest positive** and **largest negative** stock price moves for "{stock_code}" in {month}_{year}.
+    divergence_map = {
+        "same_direction": "moved in the same direction as its sector",
+        "opposite_direction": "moved in the opposite direction of its sector"
+    }
+    alignment_map = {
+        "aligned": "The stock and sector moved similarly, suggesting macroeconomic or industry-level influence.",
+        "amplified": "The stock moved more significantly than the sector, possibly due to company-specific amplification.",
+        "divergent": "The stock diverged from the sector trend, indicating potential major company-specific news."
+    }
 
-📈 HISTORICAL PRICE MOVES:
-The actual daily % change in closing price for {stock_code} in {month}_{year} is shown below:
-{price_changes}
+    prompt = f"""You are a top-tier financial analyst. Your task is to identify the most likely news events that explain the abnormal price movement of stock "{stock_code}" on {date_str}.
 
-🔍 FOCUS DATES:
-Only consider news **published on the following dates**:
-- {up_prev_str} and {up_date_str} for the **positive price move of {up_pct}**
-- {down_prev_str} and {down_date_str} for the **negative price move of {down_pct}**
+📈 STOCK MOVEMENT CONTEXT:
+- The stock {direction_text} by {record.stock_pct_chg:.2f}% on {date_str}, while the sector changed by {record.block_pct_chg:.2f}%.
+- The stock {divergence_map[record.divergence]}.
+- Interpretation: {alignment_map[record.alignment_type]}
 
-📌 OBJECTIVE:
-From the news published on these 4 days only, select:
-- 1 news item that **positively impacted** the stock (linked to the {up_date_str} move).
-- 1 news item that **negatively impacted** the stock (linked to the {down_date_str} move).
+📅 TIME WINDOW:
+Only consider news published from {record.date - datetime.timedelta(days=2)} to {record.date} (inclusive).
 
-🧠 GUIDANCE FOR SELECTION:
-- Match each news item to the same-day or next-day price move it plausibly influenced.
-- Summarize the most impactful and clearly causal events.
-- Avoid duplicative or speculative content.
+🎯 OBJECTIVE:
+Identify 1 key news events within this 3-day window that most likely caused the stock’s abnormal movement. Focus on the following potential causes:
+- {", ".join(record.likely_causes)}
 
 📝 OUTPUT FORMAT:
-Return exactly 2 items in the following format:
-
 ---
 **Title:** [Headline of the news]  
 **Date:** [YYYY-MM-DD, news published date]  
 **Summary:** [Concise and factual summary of what happened]  
 **Impact:** [Positive / Negative]  
-**Observed Price Move:** [% price change]  
+**Observed Price Move:** [% block and stock price change]  
 **Impact Analysis:** [Explain clearly how this caused the stock price movement]
 ---
 
 🔒 BOUNDARY CONDITIONS:
-- Only use news **published on {up_prev_str}, {up_date_str}, {down_prev_str}, or {down_date_str}**.
 - Do not include news from other dates.
 - Prioritize clarity, causality, and factual accuracy.
 """
+
+    return prompt
 
 
 def scoring_prompt(stock_code: str, year: int, month: int, news: str) -> str:
