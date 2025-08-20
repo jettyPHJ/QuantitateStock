@@ -28,38 +28,33 @@ class GeminiFinanceAnalyzer:
             raise ValueError(f"[{context}] 未检测到 'title'，模型回复内容异常")
 
     # 获取公司新闻要点
-    def get_company_news(self, block_code: str, stock_code: str, year: int) -> str:
-        price_changes = get_price_change_records(stock_code, block_code, f"{year}-08-01", f"{year}-12-31")
-        analyse_records = get_analyse_records(price_changes)
+    def get_company_news(self, stock_code: str, record: AttributionRecord) -> str:
+        prompt = self.create_news_prompt(stock_code, record)
 
-        for record in analyse_records:
+        try:
+            # 启用 Google 搜索工具
+            grounding_tool = types.Tool(google_search=types.GoogleSearch())
 
-            prompt = self.create_news_prompt(stock_code, record)
+            # 配置生成设置，包括联网搜索
+            config = types.GenerateContentConfig(
+                temperature=0.1,
+                max_output_tokens=2048,
+                tools=[grounding_tool],
+                thinking_config=types.ThinkingConfig(thinking_budget=256),
+            )
 
-            try:
-                # 启用 Google 搜索工具
-                grounding_tool = types.Tool(google_search=types.GoogleSearch())
+            # 发送请求
+            response = self.client.models.generate_content(
+                model="gemini-2.5-flash",
+                contents=prompt,
+                config=config,
+            )
 
-                # 配置生成设置，包括联网搜索
-                config = types.GenerateContentConfig(
-                    temperature=0.0,
-                    max_output_tokens=2048,
-                    tools=[grounding_tool],
-                    thinking_config=types.ThinkingConfig(thinking_budget=128),
-                )
+            self.check_title_count(response.text, f"{stock_code}-{year} 新闻检索")
+            return response.text
 
-                # 发送请求
-                response = self.client.models.generate_content(
-                    model="gemini-2.5-flash",
-                    contents=prompt,
-                    config=config,
-                )
-
-                self.check_title_count(response.text, f"{stock_code}-{year} 新闻检索")
-                return response.text
-
-            except Exception as e:
-                print(f"API 调用失败: {e}")
+        except Exception as e:
+            print(f"API 调用失败: {e}")
         return None
 
     # 评估新闻并输出结构化数据的字符串
@@ -110,7 +105,12 @@ if __name__ == "__main__":
     # 创建分析器实例
     analyzer = GeminiFinanceAnalyzer()
     # 获取新闻评分
-    news = analyzer.get_company_news('1000041891000000', 'NVDA.O', 2024)
+    stock_code = "NVDA.O"
+    block_code = "1000041891000000"
+    year = 2024
+    price_changes = get_price_change_records(stock_code, block_code, f"{year}-04-01", f"{year}-12-31")
+    analyse_records = get_analyse_records(price_changes)
+    news = analyzer.get_company_news(stock_code, analyse_records[0])
     print('线上大模型回复：', news)
     # _evaluations = analyzer.evaluate_news('NVDA.O', 2025, 3, news)
     # print('分数：', _evaluations)

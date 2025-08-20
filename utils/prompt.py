@@ -111,16 +111,15 @@ def news_prompt(stock_code: str, record: AttributionRecord) -> str:
 Only consider news published from {record.date - datetime.timedelta(days=2)} to {record.date} (inclusive).
 
 🎯 OBJECTIVE:
-Identify 1 key news events within this 3-day window that most likely caused the stock’s abnormal movement. Focus on the following potential causes:
+Identify 1 or 2 key news events within this 3-day window that most likely caused the stock’s abnormal movement. Focus on the following potential causes:
 - {", ".join(record.likely_causes)}
 
 📝 OUTPUT FORMAT:
 ---
 **Title:** [Headline of the news]  
 **Date:** [YYYY-MM-DD, news published date]  
-**Summary:** [Concise and factual summary of what happened]  
-**Impact:** [Positive / Negative]  
-**Observed Price Move:** [% block and stock price change]  
+**Summary:** [Concise and factual summary of what happened]    
+**Observed Price Move: "stock price change {record.stock_pct_chg:.2f}% on {date_str}, while the sector changed by {record.block_pct_chg:.2f}% "  
 **Impact Analysis:** [Explain clearly how this caused the stock price movement]
 ---
 

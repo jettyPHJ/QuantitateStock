@@ -6,7 +6,7 @@ from enum import Enum
 import time
 import math
 import data_process.finance_data.feature as ft
-from typing import List, Optional
+from typing import List
 from utils.prompt import PriceChangeRecord
 
 w.start()
@@ -218,7 +218,7 @@ def get_price_change_records(stock_code: str, block_code: str = None, start_date
     if not stock_code and not block_code:
         raise ValueError("必须提供至少一个 stock_code 或 block_code")
 
-    result_dict = {}
+    result_dict: dict[datetime.date, PriceChangeRecord] = {}
 
     # 处理个股涨跌幅
     if stock_code:
