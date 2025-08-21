@@ -5,7 +5,7 @@ import os
 from enum import Enum
 import time
 import math
-import data_process.finance_data.feature as ft
+import data_process.finance_data.script.feature as ft
 from typing import List
 from utils.prompt import PriceChangeRecord
 
@@ -202,18 +202,15 @@ def get_stock_codes(block_code: BlockCode):
     return result_list
 
 
-def get_price_change_records(stock_code: str, block_code: str = None, start_date: str = "", end_date: str = "",
-                             calendar: str = "NASDAQ", price_adj: str = "F") -> List[PriceChangeRecord]:
+def get_price_change_records(
+    stock_code: str,
+    block_code: str = None,
+    start_date: str = "",
+    end_date: str = "",
+) -> List[PriceChangeRecord]:
     """
     获取指定日期范围内某股票和/或板块的涨跌幅序列（含日期），合并成统一结构返回。
-
-    :param start_date: 开始日期 "YYYY-MM-DD"
-    :param end_date: 结束日期 "YYYY-MM-DD"
-    :param stock_code: 可选，股票代码
-    :param block_code: 可选，板块代码
-    :param calendar: Wind交易日历
-    :param price_adj: 股票复权方式，默认前复权
-    :return: List[PriceChangeRecord]
+    自动跳过值为 None 或 nan 的数据。
     """
     if not stock_code and not block_code:
         raise ValueError("必须提供至少一个 stock_code 或 block_code")
@@ -222,25 +219,29 @@ def get_price_change_records(stock_code: str, block_code: str = None, start_date
 
     # 处理个股涨跌幅
     if stock_code:
-        options = f"TradingCalendar={calendar};PriceAdj={price_adj}"
+        options = f"Days=Alldays;PriceAdj=F"
         wsd_result = check_wind_data(w.wsd(stock_code, "pct_chg", start_date, end_date, options),
                                      context=f"获取 {stock_code} 涨跌幅")
         for d, val in zip(wsd_result.Times, wsd_result.Data[0]):
-            result_dict.setdefault(d, PriceChangeRecord(date=d))
-            result_dict[d].stock_pct_chg = round(val, 2) if val is not None else None
-
+            if val is not None and not math.isnan(val):
+                result_dict.setdefault(d, PriceChangeRecord(date=d))
+                result_dict[d].stock_pct_chg = round(val, 2)
     # 处理板块涨跌幅
     if block_code:
         buffer_days = 7
         query_start = (datetime.strptime(start_date, "%Y-%m-%d") - timedelta(days=buffer_days)).strftime("%Y-%m-%d")
-        options = "TradingCalendar=NYSE"
+        options = "Days=Alldays;DynamicTime=0"
         ws_result = w.wses(block_code, "sec_close_avg", query_start, end_date, options)
 
         if ws_result.ErrorCode != 0:
             raise RuntimeError(f"Wind请求失败，错误码 {ws_result.ErrorCode}")
 
-        dates = ws_result.Times
-        prices = ws_result.Data[0]
+        dates, prices = [], []
+        for d, val in zip(ws_result.Times, ws_result.Data[0]):
+            if val is not None and not math.isnan(val):
+                dates.append(d)
+                prices.append(val)
+
         start_dt = datetime.strptime(start_date, "%Y-%m-%d").date()
         index = next((i for i, d in enumerate(dates) if d >= start_dt), None)
 
@@ -262,10 +263,10 @@ def get_price_change_records(stock_code: str, block_code: str = None, start_date
 
 
 # --------------------- 测试入口 ---------------------
-# if __name__ == "__main__":
-#     # fetcher = WindFinancialDataFetcher(stock_code="NVDA.O", block_code=BlockCode.US_CHIP)
-#     # data = fetcher.get_data()
-#     # print(data)
-#     # print(get_stock_codes(BlockCode.US_CHIP))
-#     # res = get_price_change_records("NVDA.O", "2025-06-19", "2025-07-19")
-#     # print("res:", res)
+if __name__ == "__main__":
+    # fetcher = WindFinancialDataFetcher(stock_code="NVDA.O", block_code=BlockCode.US_CHIP)
+    # data = fetcher.get_data()
+    # print(data)
+    # print(get_stock_codes(BlockCode.US_CHIP))
+    res = get_price_change_records("NVDA.O", "1000015222000000", "2025-08-01", "2025-08-20")
+    print("res:", res)

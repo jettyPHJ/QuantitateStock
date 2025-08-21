@@ -1,20 +1,23 @@
 import os
 import sqlite3
 from typing import List, Dict
-from data_process.news_data.news import Evaluation, GeminiFinanceAnalyzer
+from data_process.news_data.script.news import GeminiFinanceAnalyzer
 import time
 from datetime import datetime, timedelta
 import math
+import re
+from utils.prompt import Evaluation, AttributionRecord
 
 
-class NewsDBManager:
+class ScoresDBManager:
     """
     封装对单个股票新闻评分数据的 sqlite 管理逻辑。
     """
 
-    def __init__(self, stock_code: str, db_dir: str = "db"):
+    def __init__(self, block_code: str, stock_code: str, db_dir: str = "db/news"):
         self.news_manager = GeminiFinanceAnalyzer()
 
+        self.block_code = block_code
         self.stock_code = stock_code
         self.db_dir = os.path.join(os.path.dirname(__file__), db_dir)
         os.makedirs(self.db_dir, exist_ok=True)
@@ -29,60 +32,15 @@ class NewsDBManager:
         self._init_db_settings()
         self.ensure_table_exists()
 
-    def _extract_db_char(self, stock_code: str) -> str:
-        """提取股票代码中首个非0的字符（数字或字母）"""
-        for c in stock_code:
-            if c != '0' and c.isalnum():
-                return c.upper()
-        return "OTHER"
-
-    def _format_table_name(self, stock_code: str) -> str:
-        """将股票代码格式化为合法的 SQLite 表名（去掉 .）"""
-        return stock_code.replace(".", "").upper()
-
-    def _init_db_settings(self):
-        """配置 SQLite 写入策略"""
-        self.cursor.execute("PRAGMA journal_mode=DELETE;")
-        self.cursor.execute("PRAGMA synchronous=FULL;")
-
-    def ensure_table_exists(self):
-        """确保该股票代码的评分表存在"""
-        self.cursor.execute(f'''
-            CREATE TABLE IF NOT EXISTS {self.table_name} (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                year INTEGER,
-                month INTEGER,
-                news TEXT,
-                evaluations TEXT
-            )
-        ''')
-        self.conn.commit()
-
-    def save_news_with_evaluations(self, year: int, month: int, news_text: str, evaluations: str):
-        """
-        存储大模型输出和结构化评分数据
-        """
-        try:
-            self.cursor.execute(
-                f'''
-                INSERT INTO {self.table_name} (year, month, news, evaluations)
-                VALUES (?, ?, ?, ?)
-                ''', (year, month, news_text.strip(), evaluations.strip()))
-            self.conn.commit()
-            print(f"[INFO] 已写入 {self.stock_code}_{year}_{month} 的评分数据")
-        except Exception as e:
-            print(f"[ERROR] 写入数据库失败: {e}")
-            self.conn.rollback()  # 写入失败时回滚事务
-
     def get_evaluations(self, year: int, month: int) -> List[Evaluation]:
         """
-        核心方法：先从数据库查询评分，如果没有则通过 Gemini API 生成并存储。
-        """
+            核心方法：先从数据库查询评分，如果没有则通过 Gemini API 生成并存储。
+            """
         # 1. 尝试从数据库查询，直接将逻辑内联
         try:
             self.cursor.execute(
                 f'''SELECT evaluations FROM {self.table_name}
-                    WHERE year = ? AND month = ? LIMIT 1''', (year, month))
+                        WHERE year = ? AND month = ? LIMIT 1''', (year, month))
             row = self.cursor.fetchone()
             if row:
                 print(f"[INFO] 从数据库获取 {self.stock_code}_{year}_{month} 的评分数据")
@@ -199,12 +157,3 @@ def compute_scores(news_items: List[Evaluation], start_date: str, end_date: str,
 
     # 计算加权平均分
     return {field.replace("_score", ""): sum(daily_scores[field]) / total_weight for field in score_fields}
-
-
-# --------------------- 测试入口 ---------------------
-if __name__ == "__main__":
-    # 创建数据库实例
-    news_db = NewsDBManager(stock_code="NVDA.O")
-    evaluations = news_db.get_evaluations(2024, 3)
-    results = compute_scores(evaluations, "2024-03-01", "2024-04-01")
-    print("results: ", results)

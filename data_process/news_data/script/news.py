@@ -3,7 +3,7 @@ from google import genai
 from google.genai import types
 from typing import List, Optional
 from pydantic import TypeAdapter
-from data_process.finance_data.wind import get_price_change_records
+from data_process.finance_data.script.wind import get_price_change_records
 from utils.prompt import news_prompt, scoring_prompt, get_analyse_records, Evaluation, AttributionRecord
 
 
@@ -14,6 +14,9 @@ class GeminiFinanceAnalyzer:
         if not api_key:
             raise ValueError("环境变量 'GEMINI_API_KEY' 未设置")
         self.client = genai.Client()
+
+    def get_model_name(self) -> str:
+        return "Gemini"
 
     def create_news_prompt(self, stock_code: str, record: AttributionRecord) -> str:
         return news_prompt(stock_code, record)
@@ -50,7 +53,7 @@ class GeminiFinanceAnalyzer:
                 config=config,
             )
 
-            self.check_title_count(response.text, f"{stock_code}-{year} 新闻检索")
+            self.check_title_count(response.text, f"{stock_code} 新闻检索")
             return response.text
 
         except Exception as e:

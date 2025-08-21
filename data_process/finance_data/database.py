@@ -1,6 +1,6 @@
 import sqlite3
 import os
-import data_process.finance_data.wind as wd
+import data_process.finance_data.script.wind as wd
 
 BlockCode = wd.BlockCode
 

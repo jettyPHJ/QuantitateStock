@@ -2,7 +2,7 @@ import numpy as np
 import pandas as pd
 import torch
 from torch.utils.data import Dataset
-from data_process.finance_data.feature import FEATURE_META, FeatureConfig, ScalingMethod
+from data_process.finance_data.script.feature import FEATURE_META, FeatureConfig, ScalingMethod
 from data_process.finance_data.database import FinanceDBManager, BlockCode
 
 
