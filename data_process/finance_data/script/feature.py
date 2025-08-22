@@ -2,6 +2,7 @@ import os
 import yaml
 from enum import Enum
 from dataclasses import dataclass
+import numpy as np
 
 # ------------------------- 1. 枚举定义 -------------------------
 
@@ -116,3 +117,54 @@ def stock_wind_opt(trade_days: int, end_day: int, start_day: int) -> str:
 
 def block_wind_opt(start_day: int, end_day: int, year: int) -> str:
     return f"startDate={start_day};endDate={end_day};tradeDate={end_day};DynamicTime=1;excludeRule=2;year={year}"
+
+
+# ---------------------归一化函数-----------------------
+# 输入的是滑动窗口，归一化采用全部历史数据
+
+
+def zscore_normalize(arr: np.ndarray) -> np.ndarray:
+    """
+    对数组进行 Z-score 归一化，忽略 NaN。保留原 NaN。
+    """
+    arr = np.array(arr, dtype=float)
+    mask = ~np.isnan(arr)
+
+    if mask.sum() == 0:
+        return np.full_like(arr, np.nan)  # 全是空
+
+    mean_val = np.mean(arr[mask])
+    std_val = np.std(arr[mask])
+
+    if std_val == 0:
+        normed = np.zeros_like(arr)
+        normed[~mask] = np.nan
+        return normed
+
+    normed = np.empty_like(arr)
+    normed[mask] = (arr[mask] - mean_val) / std_val
+    normed[~mask] = np.nan
+    return normed
+
+
+def log_zscore_normalize(arr: np.ndarray, offset=1) -> np.ndarray:
+    """
+    对非 NaN 元素进行 log + z-score 归一化。
+    原始值中小于 0 的元素直接设为 NaN。
+    """
+    arr = np.array(arr, dtype=float)
+    safe_arr = np.where(arr < 0, np.nan, arr)  # 负值也视为 nan
+
+    with np.errstate(invalid='ignore'):
+        log_arr = np.log(safe_arr + offset)
+
+    return zscore_normalize(log_arr)
+
+
+def clip_normalize(arr, min_val=0.0, max_val=1.0):
+    """
+    裁剪归一化
+    限制在指定的最小值和最大值之间。
+    """
+    arr = np.array(arr / max_val, dtype=float)
+    return np.clip(arr, min_val, max_val)

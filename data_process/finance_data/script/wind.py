@@ -28,13 +28,6 @@ class BlockCode(Enum):
         self.code = code
 
 
-base_dir = os.path.dirname(__file__)
-feature_map_path = os.path.join(base_dir, "feature_map.yaml")
-with open(feature_map_path, "r", encoding="utf-8") as f:
-    FEATURE_NAME_MAP = yaml.safe_load(f)
-    REVERSE_MAP = {v: k for k, v in FEATURE_NAME_MAP.items()}
-
-
 def check_wind_data(wind_data, context=""):
     if wind_data.ErrorCode != 0:
         raise RuntimeError(f"[Wind ERROR] {context} 请求失败，错误码：{wind_data.ErrorCode}, fields: {wind_data.Fields}")
