@@ -30,13 +30,32 @@ class AttributionRecord:
     direction: Literal["positive", "negative"]
     divergence: Literal["same_direction", "opposite_direction"]
     alignment_type: Literal["aligned", "amplified", "divergent"]
+    likely_cause_category: str
     likely_causes: List[str]
 
 
+LIKELY_CAUSE_LIBRARY = {
+    "Macroeconomic/Industry": [
+        "Macroeconomic Factors",
+        "Sector-wide News",
+        "Policy or Regulatory Changes",
+    ],
+    "Company Specific": [
+        "Financial Results",
+        "Product Launch or Recall",
+        "Management Change",
+        "Mergers & Acquisitions",
+        "Unusual Trading Activity",
+    ],
+    "Market Technical": [
+        "Analyst Rating Change",
+        "Abnormal Volume",
+        "Short Selling Activity",
+    ],
+}
+
+
 def get_analyse_records(price_change_records: List[PriceChangeRecord]) -> List[AttributionRecord]:
-    """
-    筛选出个股涨跌幅在前10%且涨跌幅绝对值不小于5%的记录，并进行归因分析。
-    """
     if not price_change_records:
         return []
 
@@ -65,28 +84,25 @@ def get_analyse_records(price_change_records: List[PriceChangeRecord]) -> List[A
 
         if divergence == "opposite_direction":
             alignment_type = "divergent"
-            likely_causes = ["Major Corporate News", "Product/Tech Breakthrough", "Unusual Trading Activity"]
+            likely_cause_category = "Company Specific"
+        elif pct_diff < amplified_threshold:
+            alignment_type = "aligned"
+            likely_cause_category = "Macroeconomic/Industry"
         else:
-            if pct_diff < amplified_threshold:
-                alignment_type = "aligned"
-                likely_causes = ["Macroeconomic Factors", "Market Sentiment", "Industry/Sector News"]
-            else:
-                alignment_type = "amplified"
-                likely_causes = ["Company Specific Event (Amplified by Market)", "Financial Results", "Management News"]
+            alignment_type = "amplified"
+            likely_cause_category = "Company Specific"
+
+        likely_causes = LIKELY_CAUSE_LIBRARY[likely_cause_category]
 
         attribution_records.append(
             AttributionRecord(date=r.date, stock_pct_chg=r.stock_pct_chg, block_pct_chg=r.block_pct_chg,
                               direction=direction, divergence=divergence, alignment_type=alignment_type,
-                              likely_causes=likely_causes))
+                              likely_cause_category=likely_cause_category, likely_causes=likely_causes))
 
     return attribution_records
 
 
 def news_prompt(stock_code: str, record: AttributionRecord) -> str:
-    """
-    根据 AttributionRecord 生成用于新闻归因分析的 Prompt。
-    要求模型在分析日期的前三天（含当日）范围内，找出导致股价大幅波动的主要新闻。
-    """
     date_str = record.date.strftime("%Y-%m-%d")
     direction_text = "rose" if record.direction == "positive" else "fell"
 
@@ -100,7 +116,8 @@ def news_prompt(stock_code: str, record: AttributionRecord) -> str:
         "divergent": "The stock diverged from the sector trend, indicating potential major company-specific news."
     }
 
-    prompt = f"""You are a top-tier financial analyst. Your task is to identify the most likely news events that explain the abnormal price movement of stock "{stock_code}" on {date_str}.
+    # 拼接 Prompt
+    prompt = f"""You are a top-tier financial analyst. Your task is to identify **1 most likely news event** explaining the abnormal stock price movement of "{stock_code}" on {date_str}.
 
 📈 STOCK MOVEMENT CONTEXT:
 - The stock {direction_text} by {record.stock_pct_chg:.2f}% on {date_str}, while the sector changed by {record.block_pct_chg:.2f}%.
@@ -108,24 +125,35 @@ def news_prompt(stock_code: str, record: AttributionRecord) -> str:
 - Interpretation: {alignment_map[record.alignment_type]}
 
 📅 TIME WINDOW:
-Only consider news published from {record.date - datetime.timedelta(days=2)} to {record.date} (inclusive).
+Only consider news published from {record.date - datetime.timedelta(days=2)} to {record.date} (inclusive). Do not include earlier or later events.
 
 🎯 OBJECTIVE:
-Identify 1 or 2 key news events within this 3-day window that most likely caused the stock’s abnormal movement. Focus on the following potential causes:
-- {", ".join(record.likely_causes)}
+From this 3-day window, select **one news item** that most plausibly caused the observed price movement. Your reasoning must follow the **structured cause-effect chain** below.
+
+🏷️ LIKELY CAUSE CATEGORIES:
+- Category: {record.likely_cause_category}
+- Suggested Subtypes: {", ".join(record.likely_causes)}
 
 📝 OUTPUT FORMAT:
 ---
-**Title:** [Headline of the news]  
+**Title:** [News headline]  
 **Date:** [YYYY-MM-DD, news published date]  
-**Summary:** [Concise and factual summary of what happened]    
-**Observed Price Move: "stock price change {record.stock_pct_chg:.2f}% on {date_str}, while the sector changed by {record.block_pct_chg:.2f}% "  
-**Impact Analysis:** [Explain clearly how this caused the stock price movement]
+**Summary:** [Concise, factual summary of the news]  
+**Observed Movement:** Stock {direction_text} by {record.stock_pct_chg:.2f}% vs sector {record.block_pct_chg:.2f}%  
+**Cause Category:** {record.likely_cause_category} ➜ [Select one from: {", ".join(record.likely_causes)}]  
+
+**Impact Chain (Required – 5 stages):**
+1. **Triggering Event:** What specifically happened? (e.g., earnings release, policy change, executive resignation)  
+2. **Immediate Effect:** What was the immediate, measurable impact? (e.g., revenue down 10%, profit warning issued)  
+3. **Company-Level Impact:** How did this affect the company's business, strategy, or financial outlook?  
+4. **Investor Interpretation:** How did investors interpret this event? Did it alter expectations, sentiment, or valuation assumptions?  
+5. **Stock Reaction:** How did the stock move in response to the investor interpretation on {date_str}?
 ---
 
-🔒 BOUNDARY CONDITIONS:
-- Do not include news from other dates.
-- Prioritize clarity, causality, and factual accuracy.
+🔒 CONSTRAINTS:
+- Do NOT include news outside the 3-day window.
+- You must select a cause subtype from the provided list.
+- The **Impact Chain** is mandatory. Do not skip or collapse steps.
 """
 
     return prompt

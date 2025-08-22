@@ -40,10 +40,10 @@ class GeminiFinanceAnalyzer:
 
             # 配置生成设置，包括联网搜索
             config = types.GenerateContentConfig(
-                temperature=0.1,
+                temperature=0.0,
                 max_output_tokens=2048,
                 tools=[grounding_tool],
-                thinking_config=types.ThinkingConfig(thinking_budget=256),
+                thinking_config=types.ThinkingConfig(thinking_budget=128),
             )
 
             # 发送请求
