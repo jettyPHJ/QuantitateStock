@@ -2,6 +2,9 @@ import yaml
 from typing import Dict, List
 import os
 
+base_dir = os.path.dirname(__file__)
+block_code_path = os.path.join(base_dir, "block_code.yaml")
+
 
 class BlockCodeItem:
 
@@ -48,8 +51,6 @@ class BlockCode:
         return None
 
 
-base_dir = os.path.dirname(__file__)
-block_code_path = os.path.join(base_dir, "block_code.yaml")
 BlockCode.load_from_yaml(block_code_path)
 
 # --------------------- 测试入口 ---------------------
