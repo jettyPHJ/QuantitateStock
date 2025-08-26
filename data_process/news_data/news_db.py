@@ -3,11 +3,10 @@ import sqlite3
 from data_process.news_data.script.news import GeminiFinanceAnalyzer
 import re
 from utils.prompt import AttributionRecord
-from data_process.finance_data.script.wind import get_price_change_records
+from data_process.finance_data.script.wind import get_price_change_records, get_stock_codes
 from utils.block import Block
 from utils.prompt import get_analyse_records
 from datetime import datetime
-from typing import Type
 
 
 class NewsDBManager:
@@ -118,7 +117,7 @@ class NewsDBManager:
                     ''', (record.date.isoformat(), record.stock_pct_chg, record.block_pct_chg, news_text))
 
             self.conn.commit()
-            print(f"[INFO] 已写入 {self.stock_code}_{record.date} 的数据 - {model_name}")
+            print(f"[INFO] 已写入 {self.stock_code}_{record.date} 数据 - {model_name}")
         except Exception as e:
             print(f"[ERROR] 写入数据库失败: {e}")
             self.conn.rollback()
@@ -162,7 +161,9 @@ class NewsDBManager:
             print(f"[INFO] 正在处理 {year} 年的数据...")
             price_changes = get_price_change_records(self.stock_code, self.block_code, f"{year}-01-01", f"{year}-12-31")
             analyse_records = get_analyse_records(price_changes)
-
+            if len(analyse_records) == 0:
+                print(f"[INFO]  {self.stock_code} 在 {year} 年的股价平稳，未达到分析要求...")
+                continue
             for record in analyse_records:
                 date_str = str(record.date)
                 # 检查该日期是否已有该模型字段的数据
@@ -173,7 +174,6 @@ class NewsDBManager:
                     continue  # 已存在则跳过
 
                 try:
-                    print(f"[INFO] {date_str} 未找到 {model_name} 新闻")
                     news = self.analyzer.get_company_news(self.stock_code, record)
                     self.save_news(record, news, model_name)
                 except Exception as e:
@@ -189,15 +189,23 @@ class NewsDBManager:
             pass
 
 
-# 接收板块类，遍历其中所有板块，生成对应股票的新闻数据
-def create_news_db():
+# 生成板块配置文件的子结构对应股票的新闻数据
+def create_news_db(entry_key: str):
     """
-    创建一个包含所有股票新闻数据的 sqlite 数据库。
+    创建一个包含指定板块所有股票新闻数据的 sqlite 数据库。
     """
-    for name, item in Block.all().items():
-        print(name, item.desc, item.code)
+    sub_items = Block.get_sub_items(entry_key)
+    for _, item in sub_items.items():
+        print(f"[INFO] 开始搜寻{item.desc} 板块的股票新闻")
+        stock_codes = get_stock_codes(item.code)
+        if len(stock_codes) == 0:
+            print(f"[INFO] {item.desc} 板块没有股票")
+            continue
+        for stock_code in stock_codes:
+            NewsDBManager(item.code, stock_code)
+            print(f"[INFO] {item.desc} 板块_{stock_code} 新闻收集完成")
 
 
 # --------------------- 测试入口 ---------------------
 if __name__ == "__main__":
-    create_news_db()
+    create_news_db("SP500_WIND行业类")

@@ -40,10 +40,10 @@ class GeminiFinanceAnalyzer:
 
             # 配置生成设置，包括联网搜索
             config = types.GenerateContentConfig(
-                temperature=0.0,
+                temperature=0.1,
                 max_output_tokens=2048,
                 tools=[grounding_tool],
-                thinking_config=types.ThinkingConfig(thinking_budget=128),
+                thinking_config=types.ThinkingConfig(thinking_budget=256),
             )
 
             # 发送请求
@@ -74,7 +74,7 @@ class GeminiFinanceAnalyzer:
         prompt = self.create_scoring_prompt(stock_code, year, month, news)
 
         try:
-            config = types.GenerateContentConfig(temperature=0.0, max_output_tokens=2048,
+            config = types.GenerateContentConfig(temperature=0.1, max_output_tokens=2048,
                                                  thinking_config=types.ThinkingConfig(thinking_budget=512),
                                                  response_mime_type="application/json",
                                                  response_schema=list[Evaluation])

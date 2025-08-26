@@ -55,13 +55,24 @@ LIKELY_CAUSE_LIBRARY = {
 }
 
 
-def get_analyse_records(price_change_records: List[PriceChangeRecord]) -> List[AttributionRecord]:
+def get_analyse_records(price_change_records: List[PriceChangeRecord],
+                        amplified_percentile: int = 80) -> List[AttributionRecord]:
     if not price_change_records:
         return []
 
-    valid_records = [r for r in price_change_records if r.stock_pct_chg is not None]
+    valid_records = [r for r in price_change_records if r.stock_pct_chg is not None and r.block_pct_chg is not None]
     if not valid_records:
         return []
+
+    # 动态计算阈值（只考虑股价和板块同向变动的记录）
+    same_direction_records = [r for r in valid_records if r.stock_pct_chg * r.block_pct_chg >= 0]
+
+    if same_direction_records:
+        pct_diffs = [abs(r.stock_pct_chg - r.block_pct_chg) for r in same_direction_records]
+        amplified_threshold = np.percentile(pct_diffs, amplified_percentile)
+    else:
+        # 如果没有同向记录，可以给一个默认值
+        amplified_threshold = 3.0
 
     stock_changes = [r.stock_pct_chg for r in valid_records]
     abs_stock_changes = np.abs(stock_changes)
@@ -72,25 +83,22 @@ def get_analyse_records(price_change_records: List[PriceChangeRecord]) -> List[A
     ]
 
     attribution_records: List[AttributionRecord] = []
-    amplified_threshold = 3.0  # 可调参数
 
     for r in analyse_records:
-        if r.stock_pct_chg is None or r.block_pct_chg is None:
-            continue
-
         direction = "positive" if r.stock_pct_chg > 0 else "negative"
         divergence = "same_direction" if r.stock_pct_chg * r.block_pct_chg >= 0 else "opposite_direction"
-        pct_diff = abs(r.stock_pct_chg - r.block_pct_chg)
 
         if divergence == "opposite_direction":
             alignment_type = "divergent"
             likely_cause_category = "Company Specific"
-        elif pct_diff < amplified_threshold:
-            alignment_type = "aligned"
-            likely_cause_category = "Macroeconomic/Industry"
         else:
-            alignment_type = "amplified"
-            likely_cause_category = "Company Specific"
+            pct_diff = abs(r.stock_pct_chg - r.block_pct_chg)
+            if pct_diff < amplified_threshold:
+                alignment_type = "aligned"
+                likely_cause_category = "Macroeconomic/Industry"
+            else:
+                alignment_type = "amplified"
+                likely_cause_category = "Company Specific"
 
         likely_causes = LIKELY_CAUSE_LIBRARY[likely_cause_category]
 
@@ -142,7 +150,7 @@ From this 3-day window, select **one news item** that most plausibly caused the 
 **Observed Movement:** Stock {direction_text} by {record.stock_pct_chg:.2f}% vs sector {record.block_pct_chg:.2f}%  
 **Cause Category:** {record.likely_cause_category} ➜ [Select one from: {", ".join(record.likely_causes)}]  
 
-**Impact Chain (Required – 5 stages):**
+**Impact Chain (5 stages):**
 1. **Triggering Event:** What specifically happened? (e.g., earnings release, policy change, executive resignation)  
 2. **Immediate Effect:** What was the immediate, measurable impact? (e.g., revenue down 10%, profit warning issued)  
 3. **Company-Level Impact:** How did this affect the company's business, strategy, or financial outlook?  

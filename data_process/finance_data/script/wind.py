@@ -149,12 +149,18 @@ class WindFinancialDataFetcher:
 
 # 获取指定板块所有的股票代码
 def get_stock_codes(block_code: str):
-    wset_result = check_wind_data(w.wset("sectorconstituent", f"date={datetime.now().date()};sectorid={block_code}"),
-                                  context=f"获取 {block_code} 板块股票")
+    try:
+        wset_result = check_wind_data(
+            w.wset("sectorconstituent", f"date={datetime.now().date()};sectorid={block_code}"),
+            context=f"获取 {block_code} 板块股票")
 
-    result_list = ft.build_translated_data_map(wset_result.Fields, wset_result.Data)["wind_code"]
-
-    return result_list
+        result_list = []
+        if wset_result.ErrorCode == 0 and len(wset_result.Data) > 0:
+            result_list = ft.build_translated_data_map(wset_result.Fields, wset_result.Data)["wind_code"]
+        return result_list
+    except Exception as e:
+        print(f"❌ 获取板块 {block_code} 股票列表失败: {e}")
+        return []
 
 
 def get_price_change_records(
