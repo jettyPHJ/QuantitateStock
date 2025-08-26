@@ -4,7 +4,7 @@ from data_process.news_data.script.news import GeminiFinanceAnalyzer
 import re
 from utils.prompt import AttributionRecord
 from data_process.finance_data.script.wind import get_price_change_records
-from data_process.finance_data.script.block_code import BlockCode
+from utils.block import Block
 from utils.prompt import get_analyse_records
 from datetime import datetime
 from typing import Type
@@ -190,14 +190,14 @@ class NewsDBManager:
 
 
 # 接收板块类，遍历其中所有板块，生成对应股票的新闻数据
-def create_news_db(block_class: Type[BlockCode]):
+def create_news_db():
     """
     创建一个包含所有股票新闻数据的 sqlite 数据库。
     """
-    for name, item in BlockCode.all().items():
+    for name, item in Block.all().items():
         print(name, item.desc, item.code)
 
 
 # --------------------- 测试入口 ---------------------
 if __name__ == "__main__":
-    create_news_db(BlockCode)
+    create_news_db()

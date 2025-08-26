@@ -2,8 +2,8 @@ import numpy as np
 import pandas as pd
 import torch
 from torch.utils.data import Dataset
-from data_process.finance_data.script.feature import FEATURE_META, FeatureConfig, ScalingMethod, zscore_normalize, log_zscore_normalize, clip_normalize
-from data_process.finance_data.database import FinanceDBManager, BlockCode
+from utils.feature import FEATURE_META, FeatureConfig, ScalingMethod, zscore_normalize, log_zscore_normalize, clip_normalize
+from data_process.finance_data.database import FinanceDBManager, Block
 
 
 # --------------------- 基类 ---------------------
@@ -159,7 +159,7 @@ class FinancialDataset(BaseFinancialDataset, Dataset):
 # --------------------- 用于单支股票推理 ---------------------
 class SingleStockDataset(BaseFinancialDataset, Dataset):
 
-    def __init__(self, stock_code: str, block_code=BlockCode.US_CHIP):
+    def __init__(self, stock_code: str, block_code: str):
         self.stock_code = stock_code
         self.block_code = block_code
         self.finance_db = FinanceDBManager(block_code)
@@ -218,6 +218,6 @@ def collate_fn(batch):
 
 # --------------------- 测试入口 ---------------------
 if __name__ == "__main__":
-    dataset = FinancialDataset(block_codes=[BlockCode.SP_500], update=True)
+    dataset = FinancialDataset(block_codes=[Block.get("标普500指数").code], update=True)
     train_set, val_set = dataset.build_datasets()
     print(f"Train samples: {len(train_set)}, Val samples: {len(val_set)}")

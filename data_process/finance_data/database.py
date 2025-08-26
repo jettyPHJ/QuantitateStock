@@ -1,15 +1,14 @@
 import sqlite3
 import os
 import data_process.finance_data.script.wind as wd
-
-BlockCode = wd.BlockCode
+from utils.block import Block, BlockItem
 
 
 class FinanceDBManager:
 
-    def __init__(self, block_code: BlockCode, db_dir="db"):
-        self.block_code = block_code
-        db_file = f"{self.block_code.name}.db"
+    def __init__(self, block: BlockItem, db_dir="db"):
+        self.block = block
+        db_file = f"{self.block.name}.db"
         self.db_path = os.path.join(os.path.dirname(__file__), db_dir, db_file)
 
         os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
@@ -63,9 +62,9 @@ class FinanceDBManager:
                 f'''
                 INSERT INTO "{table_name}" ({fields}) VALUES ({placeholders})
                 ''', values)
-            print(f"[写入成功] {stock_code} ({self.block_code.name}) - {record.get('报告期')}")
+            print(f"[写入成功] {stock_code} ({self.block.name}) - {record.get('报告期')}")
         except Exception as e:
-            print(f"[写入失败] {stock_code} ({self.block_code.name}) - {record.get('报告期')}，错误：{e}")
+            print(f"[写入失败] {stock_code} ({self.block.name}) - {record.get('报告期')}，错误：{e}")
         self.conn.commit()
 
     # 抓取单股数据
@@ -81,7 +80,7 @@ class FinanceDBManager:
 
         if not exists:
             # 表不存在：调用 fetcher 抓取数据并存入数据库
-            fetcher = wd.WindFinancialDataFetcher(stock_code=stock_code, block_code=self.block_code)
+            fetcher = wd.WindFinancialDataFetcher(stock_code=stock_code, block_code=self.block.code)
             data_list = fetcher.get_data()
 
             if not data_list:
@@ -108,8 +107,8 @@ class FinanceDBManager:
         获取整个板块下所有股票的财务数据，并以 {stock_code: [record_dict, ...]} 的形式返回。
         """
         result = {}
-        stock_codes = wd.get_stock_codes(self.block_code)
-        print(f"[Info] 开始处理板块（{self.block_code.name}）下共 {len(stock_codes)} 支股票")
+        stock_codes = wd.get_stock_codes(self.block.code)
+        print(f"[Info] 开始处理板块（{self.block.name}）下共 {len(stock_codes)} 支股票")
 
         for stock_code in stock_codes:
             try:
@@ -145,6 +144,6 @@ class FinanceDBManager:
 
 # --------------------- 测试入口 ---------------------
 if __name__ == "__main__":
-    db = FinanceDBManager(block_code=BlockCode.US_CHIP)
+    db = FinanceDBManager(block=Block.get("US_芯片"))
     db.fetch_block_data()
     # db.fetch_stock_data(stock_code="NVDA.O")

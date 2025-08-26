@@ -5,8 +5,7 @@ from data_process.news_data.script.news import GeminiFinanceAnalyzer
 import time
 from datetime import datetime, timedelta
 import math
-import re
-from utils.prompt import Evaluation, AttributionRecord
+from utils.prompt import Evaluation
 
 
 class ScoresDBManager:

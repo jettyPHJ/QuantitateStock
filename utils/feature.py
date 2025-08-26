@@ -3,7 +3,8 @@ import yaml
 from enum import Enum
 from dataclasses import dataclass
 import numpy as np
-
+import math
+from datetime import datetime, date
 # ------------------------- 1. 枚举定义 -------------------------
 
 
@@ -71,7 +72,7 @@ FEATURE_META: dict[str, FeatureConfig] = {
 # ------------------------- 4. 特征映射文件加载 -------------------------
 
 base_dir = os.path.dirname(__file__)
-feature_map_path = os.path.join(base_dir, "feature_map.yaml")
+feature_map_path = os.path.join(base_dir, "feature.yaml")
 
 with open(feature_map_path, "r", encoding="utf-8") as f:
     FEATURE_NAME_MAP = yaml.safe_load(f)  # 中文名 → Wind 字段
@@ -98,6 +99,28 @@ def get_feature_names_by_source(source: str) -> list[str]:
 # 获取可参与训练的特征列名（中文）
 def get_trainable_feature_names() -> list[str]:
     return [name for name, cfg in FEATURE_META.items() if cfg.train]
+
+
+def build_translated_data_map(wind_fields: list[str], values: list[list]) -> dict:
+    """
+    将 Wind 字段名及对应数据转换为 中文字段 → 值 的映射。
+    如果值是 datetime/date 类型，则转为 'yyyy-mm-dd' 字符串。
+    空值和 NaN 将被转换为空字符串。
+    """
+    chinese_fields = translate_to_chinese_fields(wind_fields)
+    result = {}
+
+    for ch_name, val in zip(chinese_fields, values):
+        v = val[0] if isinstance(val, list) and len(val) == 1 else val
+
+        if v is None or (isinstance(v, float) and math.isnan(v)):
+            v = ""
+        elif isinstance(v, (datetime, date)):
+            v = v.strftime("%Y-%m-%d")
+
+        result[ch_name] = v
+
+    return result
 
 
 # ------------------------- 6. Wind 接口字段拼接 -------------------------

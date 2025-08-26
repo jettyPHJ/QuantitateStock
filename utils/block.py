@@ -3,21 +3,22 @@ from typing import Dict, List
 import os
 
 base_dir = os.path.dirname(__file__)
-block_code_path = os.path.join(base_dir, "block_code.yaml")
+block_code_path = os.path.join(base_dir, "tem_block.yaml")
 
 
-class BlockCodeItem:
+class BlockItem:
 
-    def __init__(self, desc: str, code: str):
+    def __init__(self, name: str, desc: str, code: str):
+        self.name = name
         self.desc = desc
         self.code = code
 
     def __repr__(self):
-        return f"BlockCodeItem(desc='{self.desc}', code='{self.code}')"
+        return f"BlockItem(name='{self.name}', desc='{self.desc}', code='{self.code}')"
 
 
-class BlockCode:
-    _items: Dict[str, BlockCodeItem] = {}
+class Block:
+    _items: Dict[str, BlockItem] = {}
 
     @classmethod
     def load_from_yaml(cls, yaml_path: str):
@@ -31,37 +32,43 @@ class BlockCode:
                     traverse(v, path + [k])
                 else:
                     desc = " > ".join(path + [k])
-                    cls._items[k] = BlockCodeItem(desc=desc, code=str(v))
+                    name = k
+                    cls._items[name] = BlockItem(name=name, desc=desc, code=str(v))
 
         traverse(data, [])
 
     @classmethod
-    def get(cls, name: str) -> BlockCodeItem:
+    def get(cls, name: str) -> BlockItem:
         return cls._items.get(name)
 
     @classmethod
-    def all(cls) -> Dict[str, BlockCodeItem]:
+    def all(cls) -> Dict[str, BlockItem]:
         return cls._items
 
     @classmethod
-    def find_by_code(cls, code: str) -> BlockCodeItem:
+    def find_by_code(cls, code: str) -> BlockItem:
         for item in cls._items.values():
             if item.code == str(code):
                 return item
         return None
 
 
-BlockCode.load_from_yaml(block_code_path)
+Block.load_from_yaml(block_code_path)
 
 # --------------------- 测试入口 ---------------------
 if __name__ == "__main__":
-    item = BlockCode.get("石油天然气钻井")
-    print(item.desc)
-    print(item.code)
+    item = Block.get("石油天然气钻井")
+    if item:
+        print(item.name)
+        print(item.desc)
+        print(item.code)
+    else:
+        print("未找到指定名称的板块：石油天然气钻井")
+
     # 遍历所有
-    for name, item in BlockCode.all().items():
+    for name, item in Block.all().items():
         print(name, item.desc, item.code)
 
     # 通过代码反查描述
-    found = BlockCode.find_by_code("1000015080000000")
+    found = Block.find_by_code("1000015080000000")
     print(found.desc if found else "Not found")

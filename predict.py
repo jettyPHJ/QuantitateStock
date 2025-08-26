@@ -5,7 +5,7 @@ import os
 import numpy as np
 from data_process.data_set import SingleStockDataset, collate_fn
 from model import MambaModel, LSTMAttentionModel
-from data_process.finance_data.database import BlockCode
+from utils.block import Block
 
 
 def run_prediction(model_cls, stock_code, block_code, use_finetune_weights=True):
@@ -14,7 +14,7 @@ def run_prediction(model_cls, stock_code, block_code, use_finetune_weights=True)
 
     :param model_cls: 模型类，例如 MambaStock.MambaModel
     :param stock_code: 要预测的单支股票代码
-    :param block_code: 股票所属板块 BlockCode
+    :param block_code: 股票所属板块
     :param use_finetune_weights: 是否加载微调权重
     :param result_dir: Excel 输出目录
     """
@@ -133,6 +133,6 @@ if __name__ == "__main__":
     run_prediction(
         model_cls=LSTMAttentionModel,
         stock_code="AAPL.O",
-        block_code=BlockCode.NASDAQ_Computer_Index,
+        block_code=Block.get("纳斯达克计算机指数"),
         use_finetune_weights=True  # 切换微调 or 预训练模型
     )

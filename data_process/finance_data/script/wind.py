@@ -1,11 +1,9 @@
 from WindPy import w
 from datetime import datetime, date, timedelta
-import yaml
-import os
-from enum import Enum
+from utils.block import Block
 import time
 import math
-import data_process.finance_data.script.feature as ft
+import utils.feature as ft
 from typing import List
 from utils.prompt import PriceChangeRecord
 
@@ -15,52 +13,17 @@ w.start()
 start_point = "2005-01-01"
 
 
-# 板块枚举值
-class BlockCode(Enum):
-    US_CHIP = ("[US]芯片", "1000041891000000")
-    US_SEMI = ("[US]半导体", "1000041892000000")
-    US_AUTO = ("[US]无人驾驶", "1000041895000000")
-    NASDAQ_Computer_Index = ("纳斯达克计算机指数", "1000010326000000")
-    SP_500 = ("标普500指数", "a005010800000000")
-
-    def __init__(self, desc: str, code: str):
-        self.desc = desc
-        self.code = code
-
-
 def check_wind_data(wind_data, context=""):
     if wind_data.ErrorCode != 0:
         raise RuntimeError(f"[Wind ERROR] {context} 请求失败，错误码：{wind_data.ErrorCode}, fields: {wind_data.Fields}")
     return wind_data
 
 
-def build_translated_data_map(wind_fields: list[str], values: list[list]) -> dict:
-    """
-    将 Wind 字段名及对应数据转换为 中文字段 → 值 的映射。
-    如果值是 datetime/date 类型，则转为 'yyyy-mm-dd' 字符串。
-    空值和 NaN 将被转换为空字符串。
-    """
-    chinese_fields = ft.translate_to_chinese_fields(wind_fields)
-    result = {}
-
-    for ch_name, val in zip(chinese_fields, values):
-        v = val[0] if isinstance(val, list) and len(val) == 1 else val
-
-        if v is None or (isinstance(v, float) and math.isnan(v)):
-            v = ""
-        elif isinstance(v, (datetime, date)):
-            v = v.strftime("%Y-%m-%d")
-
-        result[ch_name] = v
-
-    return result
-
-
 class WindFinancialDataFetcher:
 
-    def __init__(self, stock_code: str, block_code: BlockCode):
+    def __init__(self, stock_code: str, block_code: str):
         self.stock_code = stock_code
-        self.block_code = block_code.code
+        self.block_code = block_code
         self._report_dates = None
 
     def get_report_dates(self):
@@ -114,7 +77,7 @@ class WindFinancialDataFetcher:
         wss_result = check_wind_data(w.wss(self.stock_code, ft.features_wind, ft.features_wind_opt(date)),
                                      context=f"stock_code:{self.stock_code},获取财报数据")
 
-        finance_data_map = build_translated_data_map(wss_result.Fields, wss_result.Data)
+        finance_data_map = ft.build_translated_data_map(wss_result.Fields, wss_result.Data)
 
         return finance_data_map
 
@@ -132,7 +95,7 @@ class WindFinancialDataFetcher:
             w.wss(self.stock_code, ft.stock_wind, ft.stock_wind_opt(trade_days, end_day_int, start_day_int)),
             context=f"stock_code:{self.stock_code},获取区间股价统计信息")
 
-        stock_data_map = build_translated_data_map(wss_result.Fields, wss_result.Data)
+        stock_data_map = ft.build_translated_data_map(wss_result.Fields, wss_result.Data)
 
         return stock_data_map
 
@@ -144,7 +107,7 @@ class WindFinancialDataFetcher:
             w.wsee(self.block_code, ft.block_wind, ft.block_wind_opt(start_day_int, end_day_int, year)),
             context=f"stock_code:{self.stock_code},获取板块数据")
 
-        block_data_map = build_translated_data_map(wsee_result.Fields, wsee_result.Data)
+        block_data_map = ft.build_translated_data_map(wsee_result.Fields, wsee_result.Data)
 
         return block_data_map
 
@@ -185,12 +148,11 @@ class WindFinancialDataFetcher:
 
 
 # 获取指定板块所有的股票代码
-def get_stock_codes(block_code: BlockCode):
-    wset_result = check_wind_data(
-        w.wset("sectorconstituent", f"date={datetime.now().date()};sectorid={block_code.code}"),
-        context=f"获取 {block_code.desc} 板块股票")
+def get_stock_codes(block_code: str):
+    wset_result = check_wind_data(w.wset("sectorconstituent", f"date={datetime.now().date()};sectorid={block_code}"),
+                                  context=f"获取 {block_code} 板块股票")
 
-    result_list = build_translated_data_map(wset_result.Fields, wset_result.Data)["wind_code"]
+    result_list = ft.build_translated_data_map(wset_result.Fields, wset_result.Data)["wind_code"]
 
     return result_list
 
@@ -257,9 +219,10 @@ def get_price_change_records(
 
 # --------------------- 测试入口 ---------------------
 if __name__ == "__main__":
-    # fetcher = WindFinancialDataFetcher(stock_code="NVDA.O", block_code=BlockCode.US_CHIP)
-    # data = fetcher.get_data()
-    # print(data)
-    # print(get_stock_codes(BlockCode.US_CHIP))
-    res = get_price_change_records("NVDA.O", "1000015222000000", "2025-08-01", "2025-08-20")
+    block_code = Block.get("US_芯片").code
+    fetcher = WindFinancialDataFetcher("NVDA.O", block_code)
+    data = fetcher.get_data()
+    print(data)
+    print(get_stock_codes(block_code))
+    res = get_price_change_records("NVDA.O", block_code, "2025-08-01", "2025-08-20")
     print("res:", res)

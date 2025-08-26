@@ -7,7 +7,7 @@ import random
 import os
 from model import MambaModel, LSTMAttentionModel
 import utils.plot as pl
-from data_process.finance_data.database import BlockCode
+from utils.block import Block
 from data_process.data_set import FinancialDataset, collate_fn
 
 batch_size = 64
@@ -168,8 +168,8 @@ def run_experiment(model_cls, pretrain_blocks, finetune_blocks, exclude_stocks=N
 if __name__ == "__main__":
     run_experiment(
         model_cls=LSTMAttentionModel,
-        pretrain_blocks=[BlockCode.NASDAQ_Computer_Index],
-        finetune_blocks=[BlockCode.US_CHIP],
+        pretrain_blocks=[Block.get("纳斯达克计算机指数")],
+        finetune_blocks=[Block.get("US_芯片")],
         exclude_stocks=["NVDA.O"],
         mode="pretrain"  # 可选: "pretrain", "finetune", "both"
     )
