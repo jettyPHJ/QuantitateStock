@@ -196,7 +196,7 @@ def create_news_db(entry_key: str):
     """
     sub_items = Block.get_sub_items(entry_key)
     for _, item in sub_items.items():
-        print(f"[INFO] 开始搜寻{item.desc} 板块的股票新闻")
+        print(f"[INFO] 开始搜寻 {item.desc} 板块的股票新闻")
         stock_codes = get_stock_codes(item.code)
         if len(stock_codes) == 0:
             print(f"[INFO] {item.desc} 板块没有股票")

@@ -34,29 +34,47 @@ class AttributionRecord:
     likely_causes: List[str]
 
 
+# 归因原因库（公司层面区分正负面；技术面作为回退用）
 LIKELY_CAUSE_LIBRARY = {
     "Macroeconomic/Industry": [
         "Macroeconomic Factors",
-        "Sector-wide News",
+        "Sector-wide News or Trends",
         "Policy or Regulatory Changes",
+        "Geopolitical Events",
     ],
-    "Company Specific": [
-        "Financial Results",
-        "Product Launch or Recall",
-        "Management Change",
-        "Mergers & Acquisitions",
-        "Unusual Trading Activity",
+    "Company Specific Positive": [
+        "Strong Financial Results",
+        "Successful Product Launch or Innovation",
+        "Positive Management Change",
+        "Strategic Mergers & Acquisitions",
+        "Business Expansion or Partnerships",
+        "Favorable Litigation or Regulatory Outcome",
     ],
+    "Company Specific Negative": [
+        "Weak Financial Results",
+        "Product Recall or Failure",
+        "Negative Management Change",
+        "Failed Mergers & Acquisitions",
+        "Unusual Negative Trading Activity",
+        "Business Contraction or Partnership Termination",
+        "Adverse Litigation or Regulatory Action",
+    ],
+    # 仅在 prompt 中作为“回退(Idiosyncratic)”提示
     "Market Technical": [
         "Analyst Rating Change",
-        "Abnormal Volume",
+        "Abnormal Volume or Volatility",
         "Short Selling Activity",
+        "Technical Trading Signals",
     ],
 }
 
 
 def get_analyse_records(price_change_records: List[PriceChangeRecord],
-                        amplified_percentile: int = 80) -> List[AttributionRecord]:
+                        amplified_multiplier=1.67) -> List[AttributionRecord]:
+    """
+    获取达到分析要求的记录
+    amplified_multiplier: 股票涨跌幅和板块涨跌幅的对比阈值,用于识别是否放大效应
+    """
     if not price_change_records:
         return []
 
@@ -64,16 +82,7 @@ def get_analyse_records(price_change_records: List[PriceChangeRecord],
     if not valid_records:
         return []
 
-    # 动态计算阈值（只考虑股价和板块同向变动的记录）
-    same_direction_records = [r for r in valid_records if r.stock_pct_chg * r.block_pct_chg >= 0]
-
-    if same_direction_records:
-        pct_diffs = [abs(r.stock_pct_chg - r.block_pct_chg) for r in same_direction_records]
-        amplified_threshold = np.percentile(pct_diffs, amplified_percentile)
-    else:
-        # 如果没有同向记录，可以给一个默认值
-        amplified_threshold = 3.0
-
+    # 取 top 10% 极端变动
     stock_changes = [r.stock_pct_chg for r in valid_records]
     abs_stock_changes = np.abs(stock_changes)
     top_10_percentile = np.percentile(abs_stock_changes, 90)
@@ -88,24 +97,30 @@ def get_analyse_records(price_change_records: List[PriceChangeRecord],
         direction = "positive" if r.stock_pct_chg > 0 else "negative"
         divergence = "same_direction" if r.stock_pct_chg * r.block_pct_chg >= 0 else "opposite_direction"
 
+        # ===== 分类逻辑 =====
         if divergence == "opposite_direction":
             alignment_type = "divergent"
-            likely_cause_category = "Company Specific"
+            likely_cause_category = "Company Specific Positive" if direction == "positive" else "Company Specific Negative"
+        elif abs(r.stock_pct_chg) > abs(r.block_pct_chg) * amplified_multiplier:
+            alignment_type = "amplified"
+            likely_cause_category = "Company Specific Positive" if direction == "positive" else "Company Specific Negative"
         else:
-            pct_diff = abs(r.stock_pct_chg - r.block_pct_chg)
-            if pct_diff < amplified_threshold:
-                alignment_type = "aligned"
-                likely_cause_category = "Macroeconomic/Industry"
-            else:
-                alignment_type = "amplified"
-                likely_cause_category = "Company Specific"
+            alignment_type = "aligned"
+            likely_cause_category = "Macroeconomic/Industry"
 
         likely_causes = LIKELY_CAUSE_LIBRARY[likely_cause_category]
 
         attribution_records.append(
-            AttributionRecord(date=r.date, stock_pct_chg=r.stock_pct_chg, block_pct_chg=r.block_pct_chg,
-                              direction=direction, divergence=divergence, alignment_type=alignment_type,
-                              likely_cause_category=likely_cause_category, likely_causes=likely_causes))
+            AttributionRecord(
+                date=r.date,
+                stock_pct_chg=r.stock_pct_chg,
+                block_pct_chg=r.block_pct_chg,
+                direction=direction,
+                divergence=divergence,
+                alignment_type=alignment_type,
+                likely_cause_category=likely_cause_category,
+                likely_causes=likely_causes,
+            ))
 
     return attribution_records
 
@@ -116,15 +131,16 @@ def news_prompt(stock_code: str, record: AttributionRecord) -> str:
 
     divergence_map = {
         "same_direction": "moved in the same direction as its sector",
-        "opposite_direction": "moved in the opposite direction of its sector"
+        "opposite_direction": "moved in the opposite direction of its sector",
     }
     alignment_map = {
         "aligned": "The stock and sector moved similarly, suggesting macroeconomic or industry-level influence.",
         "amplified": "The stock moved more significantly than the sector, possibly due to company-specific amplification.",
-        "divergent": "The stock diverged from the sector trend, indicating potential major company-specific news."
+        "divergent": "The stock diverged from the sector trend, indicating potential major company-specific news.",
     }
 
-    # 拼接 Prompt
+    fallback_causes = LIKELY_CAUSE_LIBRARY["Market Technical"]  # 作为“Idiosyncratic”回退
+
     prompt = f"""You are a top-tier financial analyst. Your task is to identify **1 most likely news event** explaining the abnormal stock price movement of "{stock_code}" on {date_str}.
 
 📈 STOCK MOVEMENT CONTEXT:
@@ -138,32 +154,34 @@ Only consider news published from {record.date - datetime.timedelta(days=2)} to 
 🎯 OBJECTIVE:
 From this 3-day window, select **one news item** that most plausibly caused the observed price movement. Your reasoning must follow the **structured cause-effect chain** below.
 
-🏷️ LIKELY CAUSE CATEGORIES:
+🏷️ PRIMARY CAUSE CANDIDATES:
 - Category: {record.likely_cause_category}
 - Suggested Subtypes: {", ".join(record.likely_causes)}
+
+FALLBACK RULE (Idiosyncratic / Market Technical):
+If no suitable, directionally consistent item exists within the primary category and window, explicitly switch to the fallback category below and pick **one** plausible technical trigger.
+- Fallback Category: Market Technical (Idiosyncratic)
+- Suggested Subtypes (Fallback): {", ".join(fallback_causes)}
 
 📝 OUTPUT FORMAT:
 ---
 **Title:** [News headline]  
 **Date:** [YYYY-MM-DD, news published date]  
 **Summary:** [Concise, factual summary of the news]  
-**Observed Movement:** Stock {direction_text} by {record.stock_pct_chg:.2f}% vs sector {record.block_pct_chg:.2f}%  
-**Cause Category:** {record.likely_cause_category} ➜ [Select one from: {", ".join(record.likely_causes)}]  
+**Cause Category:** [Primary or Fallback] ➜ [Select one subtype from the corresponding list]  
 
-**Impact Chain (5 stages):**
+**Impact Chain (4 stages):**
 1. **Triggering Event:** What specifically happened? (e.g., earnings release, policy change, executive resignation)  
 2. **Immediate Effect:** What was the immediate, measurable impact? (e.g., revenue down 10%, profit warning issued)  
 3. **Company-Level Impact:** How did this affect the company's business, strategy, or financial outlook?  
 4. **Investor Interpretation:** How did investors interpret this event? Did it alter expectations, sentiment, or valuation assumptions?  
-5. **Stock Reaction:** How did the stock move in response to the investor interpretation on {date_str}?
 ---
 
 🔒 CONSTRAINTS:
-- Do NOT include news outside the 3-day window.
-- You must select a cause subtype from the provided list.
-- The **Impact Chain** is mandatory. Do not skip or collapse steps.
+- Search **primary** category first; only then apply the **fallback** category if needed (state 'Fallback used' if applied).
+- Keep strictly within the 3-day window.
+- Ensure the selected news is **directionally consistent** with the observed move.
 """
-
     return prompt
 
 
