@@ -167,9 +167,9 @@ def run_experiment(model_cls, pretrain_blocks, finetune_blocks, exclude_stocks=N
 # --------------------- 使用入口 ---------------------
 if __name__ == "__main__":
     run_experiment(
-        model_cls=LSTMAttentionModel,
+        model_cls=MambaModel,
         pretrain_blocks=[Block.get("纳斯达克计算机指数")],
         finetune_blocks=[Block.get("US_芯片")],
-        exclude_stocks=["NVDA.O"],
-        mode="pretrain"  # 可选: "pretrain", "finetune", "both"
+        exclude_stocks=["AMD.O"],
+        mode="both"  # 可选: "pretrain", "finetune", "both"
     )

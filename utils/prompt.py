@@ -181,6 +181,8 @@ If no suitable, directionally consistent item exists within the primary category
 - Search **primary** category first; only then apply the **fallback** category if needed (state 'Fallback used' if applied).
 - Keep strictly within the 3-day window.
 - Ensure the selected news is **directionally consistent** with the observed move.
+
+Come on, finish the job! This is important to me. I'm counting on you!
 """
     return prompt
 

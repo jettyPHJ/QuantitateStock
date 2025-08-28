@@ -57,7 +57,7 @@ def run_prediction(model_cls, stock_code, block_code, use_finetune_weights=True)
             features = features.to(device)
             preds = model(origins, features).squeeze(-1).cpu().numpy()
 
-            for batch_idx, (origin_tensor, pred) in enumerate(zip(origins, preds)):
+            for _, (origin_tensor, pred) in enumerate(zip(origins, preds)):
                 last_timestep_tensor = origin_tensor[-1]
                 last_timestep_data = last_timestep_tensor.cpu().numpy()
 
@@ -131,8 +131,8 @@ def run_prediction(model_cls, stock_code, block_code, use_finetune_weights=True)
 # --------------------- 使用入口 ---------------------
 if __name__ == "__main__":
     run_prediction(
-        model_cls=LSTMAttentionModel,
-        stock_code="AAPL.O",
+        model_cls=MambaModel,
+        stock_code="AMD.O",
         block_code=Block.get("纳斯达克计算机指数"),
         use_finetune_weights=True  # 切换微调 or 预训练模型
     )
