@@ -1,12 +1,13 @@
 import os
 import sqlite3
-from data_process.news_data.script.news import GeminiFinanceAnalyzer
+from data_process.news_data.script.gemini import GeminiAnalyzer
 import re
 from utils.prompt import AttributionRecord
 from data_process.finance_data.script.wind import get_price_change_records, get_stock_codes
 from utils.block import Block
 from utils.prompt import get_analyse_records
 from datetime import datetime
+import time
 
 
 class NewsDBManager:
@@ -15,7 +16,7 @@ class NewsDBManager:
     """
 
     def __init__(self, block_code: str, stock_code: str, db_dir: str = "news_db"):
-        self.analyzer = GeminiFinanceAnalyzer()
+        self.analyzer = GeminiAnalyzer()
 
         self.block_code = block_code
         self.stock_code = stock_code
@@ -41,11 +42,11 @@ class NewsDBManager:
         return "OTHER"
 
     def _format_table_name(self, stock_code: str) -> str:
-        """将股票代码格式化为合法的 SQLite 表名（去掉 .-)"""
+        """将股票代码格式化为合法的 SQLite 表名（去掉 .- 并加引号以保证合法性）"""
         stock_code = stock_code.strip().replace(".", "_").replace("-", "_").upper()
         if not re.match(r"^[A-Z0-9_]+$", stock_code):
             raise ValueError(f"Invalid stock code format: {stock_code}")
-        return stock_code
+        return f'"{stock_code}"'
 
     def _init_db_settings(self):
         """配置 SQLite 写入策略"""
@@ -54,9 +55,6 @@ class NewsDBManager:
 
     def ensure_table_exists(self):
         """仅创建基础字段"""
-        if not re.match(r'^[a-zA-Z0-9_]+$', self.table_name):
-            raise ValueError("Invalid table name")
-
         query = f'''
             CREATE TABLE IF NOT EXISTS {self.table_name} (
                 id INTEGER PRIMARY KEY AUTOINCREMENT,
@@ -176,6 +174,7 @@ class NewsDBManager:
                 try:
                     news = self.analyzer.get_company_news(self.stock_code, record)
                     self.save_news(record, news, model_name)
+                    time.sleep(1)  # 暂停一秒，避免请求过于频繁
                 except Exception as e:
                     print(f"[ERROR] {self.stock_code}_{date_str} 生成或写入失败: {e}")
                     self.conn.rollback()
@@ -208,4 +207,5 @@ def create_news_db(entry_key: str):
 
 # --------------------- 测试入口 ---------------------
 if __name__ == "__main__":
+    # NewsDBManager("1000069991000000", "9988.HK")
     create_news_db("SP500_WIND行业类")

@@ -1,0 +1,79 @@
+from google import genai
+from google.genai import types
+
+from utils.prompt import Evaluation
+from utils.analyzer import ModelAnalyzer
+
+
+class GeminiAnalyzer(ModelAnalyzer):
+    """基于 Google Gemini 的财经新闻分析器"""
+
+    MODEL_NAME: str = "Gemini"
+
+    def __init__(self):
+        super().__init__()
+        self.client = self.create_client()
+
+    # --------- 子类实现的抽象方法 ---------
+
+    def create_client(self):
+        """创建 Gemini 客户端"""
+        if not self.api_key:
+            raise ValueError("未找到 Gemini 的 API Key")
+        return genai.Client(api_key=self.api_key)
+
+    def request_news(self, prompt: str) -> str:
+        """请求 Gemini 获取新闻要点"""
+        grounding_tool = types.Tool(google_search=types.GoogleSearch())
+        config = types.GenerateContentConfig(
+            temperature=0.1,
+            max_output_tokens=1024,
+            tools=[grounding_tool],
+            thinking_config=types.ThinkingConfig(thinking_budget=256),
+        )
+        response = self.client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt,
+            config=config,
+        )
+        return response.text
+
+    def request_evaluation(self, prompt: str) -> str:
+        """请求 Gemini 对新闻进行评分"""
+        config = types.GenerateContentConfig(
+            temperature=0.1,
+            max_output_tokens=1024,
+            thinking_config=types.ThinkingConfig(thinking_budget=512),
+            response_mime_type="application/json",
+            response_schema=list[Evaluation],
+        )
+        response = self.client.models.generate_content(
+            model="gemini-2.5-flash",
+            contents=prompt,
+            config=config,
+        )
+        return response.text
+
+
+# --------------------- 测试入口 ---------------------
+if __name__ == "__main__":
+    from data_process.finance_data.script.wind import get_price_change_records
+    from utils.prompt import get_analyse_records
+
+    analyzer = GeminiAnalyzer()
+
+    stock_code = "9988.HK"
+    block_code = "1000069991000000"
+    year = 2025
+
+    price_changes = get_price_change_records(stock_code, block_code, f"{year}-08-25", f"{year}-12-31")
+    analyse_records = get_analyse_records(price_changes)
+
+    news = analyzer.get_company_news(stock_code, analyse_records[0])
+    print("Gemini 新闻：", news)
+
+    # evaluations_str = analyzer.evaluate_news(stock_code, 2025, 3, news)
+    # print("Gemini 评分：", evaluations_str)
+
+    # evaluations = analyzer.deserialize_evaluations(evaluations_str)
+    # print("反序列化结果：", evaluations)
