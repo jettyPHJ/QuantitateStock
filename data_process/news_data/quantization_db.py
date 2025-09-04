@@ -1,7 +1,7 @@
 import os
 import sqlite3
 from typing import List, Dict
-from data_process.news_data.script.news import GeminiFinanceAnalyzer
+from data_process.news_data.script.gemini import GeminiAnalyzer
 import time
 from datetime import datetime, timedelta
 import math
@@ -14,7 +14,7 @@ class ScoresDBManager:
     """
 
     def __init__(self, block_code: str, stock_code: str, db_dir: str = "db/news"):
-        self.news_manager = GeminiFinanceAnalyzer()
+        self.news_manager = GeminiAnalyzer()
 
         self.block_code = block_code
         self.stock_code = stock_code

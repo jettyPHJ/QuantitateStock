@@ -3,7 +3,7 @@ import yaml
 from abc import ABC, abstractmethod
 from typing import List, Optional
 from pydantic import TypeAdapter
-from utils.prompt import news_prompt, scoring_prompt, Evaluation, AttributionRecord
+from utils.prompt import important_news_prompt, quantization_prompt, Evaluation, AttributionRecord
 
 # 配置路径
 base_dir = os.path.dirname(__file__)
@@ -40,21 +40,14 @@ class ModelAnalyzer(ABC):
         pass
 
     @abstractmethod
-    def request_news(self, prompt: str) -> str:
+    def request_important_news(self, prompt: str) -> str:
         pass
 
     @abstractmethod
-    def request_evaluation(self, prompt: str) -> str:
+    def request_news_quantization(self, prompt: str) -> str:
         pass
 
     # -------- 公共逻辑 --------
-
-    def create_news_prompt(self, stock_code: str, record: AttributionRecord) -> str:
-        return news_prompt(stock_code, record)
-
-    def create_scoring_prompt(self, stock_code: str, year: int, month: int, news: str) -> str:
-        return scoring_prompt(stock_code, year, month, news)
-
     def get_model_name(self) -> str:
         return self.MODEL_NAME
 
@@ -64,26 +57,23 @@ class ModelAnalyzer(ABC):
         if count < 1:
             raise ValueError(f"[{context}] 未检测到 'title'，模型回复内容异常")
 
-    def get_company_news(self, stock_code: str, record: AttributionRecord) -> Optional[str]:
-        prompt = self.create_news_prompt(stock_code, record)
+    def get_important_news(self, stock_code: str, record: AttributionRecord) -> Optional[str]:
+        prompt = important_news_prompt(stock_code, record)
         try:
-            response = self.request_news(prompt)
+            response = self.request_important_news(prompt)
             self.check_title_count(response, f"{stock_code} 新闻检索")
             return response
         except Exception as e:
             print(f"API 调用失败: {e}")
             return None
 
-    def evaluate_news(self, stock_code: str, year: int, month: int, news: str) -> Optional[str]:
+    def get_news_quantization(self, stock_code: str, news: str) -> Optional[str]:
         if not news:
             raise ValueError("新闻为空，无法解析。")
 
-        self.check_title_count(news, f"{stock_code}-{year}_{month} 原始新闻")
-
-        prompt = self.create_scoring_prompt(stock_code, year, month, news)
+        prompt = quantization_prompt(stock_code, news)
         try:
-            response = self.request_evaluation(prompt)
-            self.check_title_count(response, f"{stock_code}-{year}_{month} 模型响应")
+            response = self.request_news_quantization(prompt)
             return response
         except Exception as e:
             print(f"[ERROR] API 调用失败: {e}")

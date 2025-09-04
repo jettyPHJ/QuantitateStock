@@ -1,6 +1,7 @@
 from openai import OpenAI
 
-# 从您的项目中导入所需的模块
+from data_process.finance_data.script.wind import get_price_change_records
+from utils.prompt import get_analyse_records
 from utils.prompt import Evaluation
 from utils.analyzer import ModelAnalyzer
 
@@ -22,7 +23,7 @@ class ChatGPTAnalyzer(ModelAnalyzer):
             raise ValueError("未找到 OpenAI 的 API Key")
         return OpenAI(api_key=self.api_key)
 
-    def request_news(self, prompt: str) -> str:
+    def request_important_news(self, prompt: str) -> str:
         """请求 ChatGPT 获取新闻要点"""
         # 注意：像 gpt-4o 这样的模型内置了网页浏览能力，无需像 Gemini 那样显式配置 grounding_tool。
         # 模型会根据 prompt 的内容决定是否需要联网搜索。
@@ -35,7 +36,7 @@ class ChatGPTAnalyzer(ModelAnalyzer):
         )
         return response.choices[0].message.content
 
-    def request_evaluation(self, prompt: str) -> str:
+    def request_news_quantization(self, prompt: str) -> str:
         """请求 ChatGPT 对新闻进行评分 (JSON格式)"""
         # 为了获得稳定的 JSON 输出，需要在 prompt 中明确指示 ChatGPT 生成 JSON，并启用 JSON 模式。
         # prompt 中应包含类似 "Please respond in JSON format that conforms to the specified schema." 的指令。
@@ -53,10 +54,6 @@ class ChatGPTAnalyzer(ModelAnalyzer):
 
 # --------------------- 测试入口---------------------
 if __name__ == "__main__":
-    from data_process.finance_data.script.wind import get_price_change_records
-    from utils.prompt import get_analyse_records
-
-    # 将 GeminiAnalyzer 替换为 ChatGPTAnalyzer 进行测试
     analyzer = ChatGPTAnalyzer()
 
     stock_code = "9988.HK"
@@ -68,7 +65,7 @@ if __name__ == "__main__":
 
     # 假设 analyse_records 不为空
     if analyse_records:
-        news = analyzer.get_company_news(stock_code, analyse_records[0])
+        news = analyzer.get_important_news(stock_code, analyse_records[0])
         print("ChatGPT 新闻：", news)
 
         # evaluations_str = analyzer.evaluate_news(stock_code, 2025, 3, news)

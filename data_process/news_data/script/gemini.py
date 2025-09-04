@@ -1,6 +1,7 @@
 from google import genai
 from google.genai import types
-
+from data_process.finance_data.script.wind import get_price_change_records
+from utils.prompt import get_analyse_records
 from utils.prompt import Evaluation
 from utils.analyzer import ModelAnalyzer
 
@@ -22,7 +23,7 @@ class GeminiAnalyzer(ModelAnalyzer):
             raise ValueError("未找到 Gemini 的 API Key")
         return genai.Client(api_key=self.api_key)
 
-    def request_news(self, prompt: str) -> str:
+    def request_important_news(self, prompt: str) -> str:
         """请求 Gemini 获取新闻要点"""
         grounding_tool = types.Tool(google_search=types.GoogleSearch())
         config = types.GenerateContentConfig(
@@ -38,7 +39,7 @@ class GeminiAnalyzer(ModelAnalyzer):
         )
         return response.text
 
-    def request_evaluation(self, prompt: str) -> str:
+    def request_news_quantization(self, prompt: str) -> str:
         """请求 Gemini 对新闻进行评分"""
         config = types.GenerateContentConfig(
             temperature=0.1,
@@ -57,9 +58,6 @@ class GeminiAnalyzer(ModelAnalyzer):
 
 # --------------------- 测试入口 ---------------------
 if __name__ == "__main__":
-    from data_process.finance_data.script.wind import get_price_change_records
-    from utils.prompt import get_analyse_records
-
     analyzer = GeminiAnalyzer()
 
     stock_code = "9988.HK"
@@ -69,7 +67,7 @@ if __name__ == "__main__":
     price_changes = get_price_change_records(stock_code, block_code, f"{year}-08-25", f"{year}-12-31")
     analyse_records = get_analyse_records(price_changes)
 
-    news = analyzer.get_company_news(stock_code, analyse_records[0])
+    news = analyzer.get_important_news(stock_code, analyse_records[0])
     print("Gemini 新闻：", news)
 
     # evaluations_str = analyzer.evaluate_news(stock_code, 2025, 3, news)

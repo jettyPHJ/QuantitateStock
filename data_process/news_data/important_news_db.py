@@ -10,12 +10,12 @@ from datetime import datetime
 import time
 
 
-class NewsDBManager:
+class ImportantNewsDBManager:
     """
-    封装对单个股票新闻评分数据的 sqlite 管理逻辑。
+    封装对单个股票重要新闻数据的 sqlite 管理逻辑。
     """
 
-    def __init__(self, block_code: str, stock_code: str, db_dir: str = "news_db"):
+    def __init__(self, block_code: str, stock_code: str, db_dir: str = "important_news_db"):
         self.analyzer = GeminiAnalyzer()
 
         self.block_code = block_code
@@ -172,7 +172,7 @@ class NewsDBManager:
                     continue  # 已存在则跳过
 
                 try:
-                    news = self.analyzer.get_company_news(self.stock_code, record)
+                    news = self.analyzer.get_important_news(self.stock_code, record)
                     self.save_news(record, news, model_name)
                     time.sleep(1)  # 暂停一秒，避免请求过于频繁
                 except Exception as e:
@@ -189,7 +189,7 @@ class NewsDBManager:
 
 
 # 生成板块配置文件的子结构对应股票的新闻数据
-def create_news_db(entry_key: str):
+def create_important_news_db(entry_key: str):
     """
     创建一个包含指定板块所有股票新闻数据的 sqlite 数据库。
     """
@@ -201,11 +201,11 @@ def create_news_db(entry_key: str):
             print(f"[INFO] {item.desc} 板块没有股票")
             continue
         for stock_code in stock_codes:
-            NewsDBManager(item.code, stock_code)
+            ImportantNewsDBManager(item.code, stock_code)
             print(f"[INFO] {item.desc} 板块_{stock_code} 新闻收集完成")
 
 
 # --------------------- 测试入口 ---------------------
 if __name__ == "__main__":
     # NewsDBManager("1000069991000000", "9988.HK")
-    create_news_db("SP500_WIND行业类")
+    create_important_news_db("SP500_WIND行业类")

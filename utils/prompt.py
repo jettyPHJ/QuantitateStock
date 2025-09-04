@@ -168,7 +168,7 @@ def get_analyse_records(
     return attribution_records
 
 
-def news_prompt(stock_code: str, record: AttributionRecord) -> str:
+def important_news_prompt(stock_code: str, record: AttributionRecord) -> str:
     """
     生成与“预期管理”归因库完全对齐的最终版Prompt。
     """
@@ -236,51 +236,95 @@ Come on, finish the job! This is important to me. I'm counting on you!
     return prompt
 
 
-def scoring_prompt(stock_code: str, year: int, month: int, news: str) -> str:
-    return f"""You are a professional financial analyst. For each of the following news events from {month}_{year} related to the company or stock code "{stock_code}", evaluate the **actual impact** on the stock from four distinct dimensions.
+def quantization_prompt(stock_code: str, news: str) -> str:
+    return f"""You are a top-tier equity strategist who blends deep fundamental analysis with real-time market intelligence. Your process involves verifying a core event, analyzing its strategic impact on the industry ecosystem, gauging the surrounding public sentiment, and then synthesizing these inputs into a robust, quantitative assessment for predictive models.
 
-📊 **Impact Dimensions** (score each from -1.0 to +1.0):
-
-1. **Industry & Policy Impact**  
-   Impact of industry-wide regulatory changes, government policy shifts, or market structure transformation.  
-
-2. **Peer Competition Impact**  
-   Impact of competitor actions (e.g., price wars, product launches, M&A) or the company’s **own** strategic and product decisions.
-
-3. **Market & Sentiment Impact**  
-   Reactions by analysts, institutional investors, or media coverage that shape short-term or medium-term market expectations.
-
-4. **Macro & Geopolitical Impact**  
-   Influence of large-scale economic forces or geopolitical events (e.g., interest rates, inflation, war, global supply chains).
+### MISSION BRIEF
+- **Stock:** {stock_code}
+- **Event / Topic:** {news}
 
 ---
 
-🧠 **Instructions**:
+### ANALYTICAL WORKFLOW (SOP)
+Execute the following 5-phase workflow.
 
-- **Each dimension must be scored separately** on a scale from -1.0 to +1.0, in increments of 0.2.
-- Provide a **clear, specific, and logically sound explanation** for each score.  
-- Explanation should **explicitly describe the cause-effect chain**:  
-  “Event ➜ triggers X ➜ which causes Y ➜ which leads to impact Z on the company.”  
-- Avoid vague terms like “bad for the company” or “market reacted negatively”. Always explain **why**.
-- If a dimension is not affected, score `0.0` and simply state why.
-- Use strong scores (±0.8 / ±1.0) only when the effect is **direct, material, and observable**.
+**Phase 1: Intelligence Gathering & Verification**
+- Use your search capabilities to investigate the specified Event/Topic.
+- **Objective 1 (Fact-Finding):** Find 1-2 primary news sources to establish the core facts.
+- **Objective 2 (Sentiment-Gauging):** Broaden your search to include financial news commentary, forums, and social media to understand the public and investor reaction.
 
-📏 **Scoring Scale** (discrete, applies to all dimensions):
+**Phase 2: Strategic Ecosystem Analysis (Fundamental & Rational View)**
+- **Ecosystem Context:** Briefly map the company's position, key competitors, and value chain.
+- **Impact Vectors:** Analyze the event's Horizontal (peer comparison) and Vertical (value chain) impact.
 
-- `+1.0`: Extreme positive — direct and major benefit to core business, valuation, or competitive standing  
-- `+0.8`: Strong positive — very favorable, clearly advantageous and likely to affect stock meaningfully  
-- `+0.6`: Moderate positive — likely beneficial, but not game-changing  
-- `+0.4`: Mild positive — small upside, possibly indirect or long-term  
-- `+0.2`: Minimal positive — slight advantage or weak signal  
-- ` 0.0`: No meaningful impact — neutral or unrelated  
-- `-0.2`: Minimal negative — slight risk or weak concern  
-- `-0.4`: Mild negative — small downside, possibly indirect or temporary  
-- `-0.6`: Moderate negative — likely harmful to near-term outlook or operations  
-- `-0.8`: Strong negative — clearly detrimental and likely to influence stock materially  
-- `-1.0`: Extreme negative — direct and significant threat to fundamentals or market value
+**Phase 3: Market Sentiment Analysis (Market & Emotional View)**
+- **Summarize the Narrative:** What is the dominant story the market is telling about this event?
+- **Gauge the Tone:** Is the overall sentiment positive, negative, or mixed? Is it driven by hype, fear, or rational analysis?
+
+**Phase 4: Synthesized Causal Chain & Mismatch Detection**
+- **Synthesize:** Integrate your strategic analysis (Phase 2) and market sentiment (Phase 3) to construct the final causal chain using the 4-step structure.
+- **Detect Mismatch:** **Crucially, if the direction of the fundamental impact (causal_impact_score) and the market sentiment (sentiment_score) are opposed, you must explicitly flag this mismatch.**
+
+**Phase 5: Final Quantification**
+- Based on your complete analysis, provide all scores for the framework below.
 
 ---
 
-Please analyze and score the following news events in {month}_{year}:  
-{news}
+### FINAL REPORT (Strictly JSON format)
+{{
+  "intelligence_summary": {{
+    "verified_event_summary": "A concise, factual summary of the core event.",
+    "market_sentiment_summary": "A summary of the prevailing narrative and emotional tone from public/media discourse."
+  }},
+  "analytical_synthesis": {{
+    "sentiment_fundamental_mismatch": {{
+      "is_mismatch": "[true or false]",
+      "description": "If true, briefly describe the nature of the mismatch (e.g., 'Market sentiment is highly negative due to headline risk, but the underlying fundamental impact appears neutral to slightly positive.')."
+    }}
+  }},
+  "impact_classification": {{
+    "primary_driver": "[Demand_Shock | Supply_Shock | Regulatory_Shock | Competitive_Shock | Operational_Shock | Tech_Shock]",
+    "strategic_consequence": "[TAM_Change | Market_Share_Change | Cost_Structure_Change | Pricing_Power_Change | Other]"
+  }},
+  "causal_chain": {{
+    "trigger_event": "The specific factual event.",
+    "ecosystem_impact": "How the competitive and value chain dynamics are altered.",
+    "shift_in_core_expectation": "The core long-term belief about the company that has now changed.",
+    "ultimate_financial_consequence": "The final predicted impact on financials and valuation."
+  }},
+  "quantitative_scores": {{
+    "causal_impact_score": {{
+      "value": "[-10 to +10]",
+      "description": "The analyst's assessment of the event's fundamental, rational impact on the company's long-term value."
+    }},
+    "uncertainty_score": {{
+      "value": "[1-10]",
+      "description": "Degree of uncertainty introduced. 1=Clear Outcome, 10=High Uncertainty."
+    }},
+    "alpha_score": {{
+      "value": "[1-10]",
+      "description": "Company-specific (alpha) vs sector-wide (beta) impact."
+    }},
+    "power_shift_score": {{
+      "value": "[-5 to +5]",
+      "description": "Shift in bargaining power along the value chain."
+    }},
+    "sentiment_score": {{
+        "value": "[-10 to +10]",
+        "description": "A direct measure of the prevailing emotional tone in public/media discourse. -10=Panic/Fear, +10=Hype/Euphoria."
+    }},
+    "time_horizon_fundamental": {{
+      "value": "[1, 2, or 3]",
+      "description": "Expected duration of the *fundamental* impact: 1=Short (<3M), 2=Medium (3-12M), 3=Long (>1Y)."
+    }},
+    "time_horizon_sentiment": {{
+      "value": "[1, 2, or 3]",
+      "description": "Expected duration of the *sentiment* impact: 1=Short (<1M), 2=Medium (1-3M), 3=Long (>3M)."
+    }},
+    "conviction_score": {{
+        "value": "[1-10]",
+        "description": "Analyst's confidence in the overall analysis. 1=Speculative, 10=High-Conviction."
+    }}
+  }}
+}}
 """
