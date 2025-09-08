@@ -5,9 +5,11 @@ import re
 from utils.prompt import AttributionRecord
 from data_process.finance_data.script.wind import get_price_change_records, get_stock_codes
 from utils.block import Block
-from utils.prompt import get_analyse_records
+import utils.prompt as pt
 from datetime import datetime
 import time
+
+start_year = 2020
 
 
 class ImportantNewsDBManager:
@@ -120,7 +122,7 @@ class ImportantNewsDBManager:
             print(f"[ERROR] 写入数据库失败: {e}")
             self.conn.rollback()
 
-    def get_news(self, date: str, model_name: str) -> str:
+    def get_news(self, date: str, model_name: str) -> pt.ImportantNews:
         """根据日期和大模型名称获取新闻内容"""
         field_name = f"{model_name.lower()}_news"
 
@@ -135,7 +137,7 @@ class ImportantNewsDBManager:
         self.cursor.execute(f"SELECT {field_name} FROM {self.table_name} WHERE date = ?", (date,))
         row = self.cursor.fetchone()
         if row and row[0]:
-            return row[0]
+            return pt.deserialize(row[0], pt.ImportantNews)
         else:
             print(f"[INFO] {date} 无 {model_name} 新闻记录")
             return ""
@@ -155,10 +157,10 @@ class ImportantNewsDBManager:
             self.conn.commit()
             print(f"[INFO] 已添加新字段: {field_name}")
 
-        for year in range(2005, current_year + 1):
+        for year in range(start_year, current_year + 1):
             print(f"[INFO] 正在处理 {year} 年的数据...")
             price_changes = get_price_change_records(self.stock_code, self.block_code, f"{year}-01-01", f"{year}-12-31")
-            analyse_records = get_analyse_records(price_changes)
+            analyse_records = pt.get_analyse_records(price_changes)
             if len(analyse_records) == 0:
                 print(f"[INFO]  {self.stock_code} 在 {year} 年的股价平稳，未达到分析要求...")
                 continue
@@ -174,7 +176,7 @@ class ImportantNewsDBManager:
                 try:
                     news = self.analyzer.get_important_news(self.stock_code, record)
                     self.save_news(record, news, model_name)
-                    time.sleep(1)  # 暂停一秒，避免请求过于频繁
+                    time.sleep(2)  # 避免请求过于频繁
                 except Exception as e:
                     print(f"[ERROR] {self.stock_code}_{date_str} 生成或写入失败: {e}")
                     self.conn.rollback()
@@ -207,5 +209,6 @@ def create_important_news_db(entry_key: str):
 
 # --------------------- 测试入口 ---------------------
 if __name__ == "__main__":
-    # NewsDBManager("1000069991000000", "9988.HK")
-    create_important_news_db("SP500_WIND行业类")
+    # ImportantNewsDBManager("1000069991000000", "9988.HK")
+    ImportantNewsDBManager("1000015222000000", "NVDA.O")
+    # create_important_news_db("SP500_WIND行业类")

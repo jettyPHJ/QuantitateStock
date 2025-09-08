@@ -34,7 +34,7 @@ class GeminiAnalyzer(ModelAnalyzer):
             thinking_config=types.ThinkingConfig(thinking_budget=256),
         )
         response = self.client.models.generate_content(
-            model="gemini-2.5-pro",
+            model="gemini-2.5-flash",
             contents=prompt,
             config=config,
         )

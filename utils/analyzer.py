@@ -2,8 +2,7 @@ import os
 import yaml
 import json
 from abc import ABC, abstractmethod
-from typing import List, Optional, Dict, Any
-from pydantic import TypeAdapter
+from typing import Optional, Dict, Any
 import utils.prompt as pt
 from google import genai
 from google.genai import types
@@ -26,12 +25,14 @@ class AssistantAnalyzer:
 
     @staticmethod
     def _safe_analyze(func):
-        """类内装饰器：统一异常处理 + 强制 JSON 解析"""
+        """类内装饰器：统一异常处理 + 强制 JSON 格式校验"""
 
         def wrapper(self, *args, **kwargs):
             response = func(self, *args, **kwargs)
+            # 强制检查是否为合法 JSON，但返回原始字符串
             try:
-                return json.loads(response)
+                json.loads(response)  # 仅校验
+                return response  # 返回原始字符串
             except json.JSONDecodeError as e:
                 raise ValueError(f"Model output is not valid JSON: {response}") from e
             except Exception as e:
@@ -133,7 +134,7 @@ class ModelAnalyzer(ABC):
     def get_related_news(self, record: pt.RelatedNewsRecord) -> Optional[str]:
         prompt = pt.related_news_prompt(record)
         try:
-            response = self.request_important_news(prompt)
+            response = self.request_related_news(prompt)
             return response
         except Exception as e:
             print(f"API 调用失败: {e}")
@@ -150,12 +151,3 @@ class ModelAnalyzer(ABC):
         except Exception as e:
             print(f"[ERROR] API 调用失败: {e}")
             return None
-
-    def deserialize_evaluations(self, evaluations: str) -> List[pt.Evaluation]:
-        """把 JSON 字符串转为结构化对象"""
-        try:
-            adapter = TypeAdapter(List[pt.Evaluation])
-            return adapter.validate_json(evaluations)
-        except Exception as e:
-            print(f"反序列化失败: {e}")
-            return []

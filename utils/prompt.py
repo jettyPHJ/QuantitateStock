@@ -3,6 +3,16 @@ from typing import List, Optional, Literal
 import datetime
 import numpy as np
 from dataclasses import dataclass
+from typing import Optional, Any
+from pydantic import TypeAdapter
+
+
+def deserialize(json_str: str, model: Any) -> Any:
+    adapter = TypeAdapter(model)
+    try:
+        return adapter.validate_json(json_str)
+    except Exception as e:
+        raise ValueError(f"JSON 解析失败: {e}") from e
 
 
 @dataclass
