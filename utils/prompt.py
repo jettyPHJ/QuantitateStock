@@ -5,6 +5,43 @@ import numpy as np
 from dataclasses import dataclass
 
 
+@dataclass
+class CausalChain(BaseModel):
+    trigger: str
+    implication: str
+    expectation: str
+    investor_rationale: str
+
+
+@dataclass
+class ImportantNews(BaseModel):
+    title: str
+    date: str
+    summary: str
+    category: str
+    specific_shift: str
+    causal_chain: CausalChain
+
+
+@dataclass
+class RelatedNews(BaseModel):
+    title: str
+    date: str
+
+
+@dataclass
+class QuantitativeScores:
+    causal_impact_score: float
+    uncertainty_score: float
+    alpha_score: float
+    power_shift_score: float
+    sentiment_score: float
+    time_horizon_fundamental: float
+    time_horizon_sentiment: float
+    conviction_score: float
+
+
+@dataclass
 class Evaluation(BaseModel):
     title: str
     date: str
@@ -168,10 +205,11 @@ def get_analyse_records(
     return attribution_records
 
 
+# --------------------------------------------------------------------------------------------------------------------
+
+
+# 生成重要新闻的prompt
 def important_news_prompt(stock_code: str, record: AttributionRecord) -> str:
-    """
-    生成与“预期管理”归因库完全对齐的最终版Prompt。
-    """
     date_str = record.date.strftime("%Y-%m-%d")
     direction_text = "rose" if record.direction == "positive" else "fell"
 
@@ -236,6 +274,61 @@ Come on, finish the job! This is important to me. I'm counting on you!
     return prompt
 
 
+# --------------------------------------------------------------------------------------------------------------------
+
+
+@dataclass
+class RelatedNewsRecord:
+    year: int
+    month: int
+    sector_name: str
+    core_stock_tickers: List[str]
+
+
+# 生成相关新闻的prompt
+def related_news_prompt(record: RelatedNewsRecord) -> str:
+    return f"""You are a top-tier AI industry analyst and market intelligence expert, skilled at rapidly identifying and extracting key events from vast amounts of information that have significant impact on a specific industry landscape.
+
+# Task
+Your task is: For a given industry sector, within a specified year and month, use your web-searching and analytical capabilities to collect and filter **10 most critical news events** related to the sector’s ecosystem.
+
+# Input Information
+- **Year**: {record.year}
+- **Month**: {record.month}
+- **Sector Name**: {record.sector_name}
+- **Core Stock Tickers**: {record.core_stock_tickers}
+
+# Output Requirements
+1. **Number of Events**: Exactly 10 news items, no more, no less.
+2. **Format**: Each news item must include the following two fields and strictly follow this format:
+   - **Event Title**: [Concise summary of the event, ≤25 words]
+   - **Date**: YYYY-MM-DD
+3. **Content Requirements**:
+   - **a. Highly Relevant**: All events must be highly relevant to the specified sector.
+   - **b. Key Constraint**: Among the 10 news items, **at least 2** must clearly relate to the sector’s **upstream or downstream** companies.
+   - **c. Ecosystem Perspective**: Events do not need to explicitly mention the “core stock tickers,” but should revolve around the ecosystem in which these companies operate.
+
+# Workflow & Thought Process
+1. **Understand the Ecosystem**: First, based on the "Sector Name" and "Core Stock Tickers," quickly construct an internal map of the sector's ecosystem.
+2. **Define Upstream & Downstream**: Clearly identify what constitutes upstream and downstream for this sector.  
+   - Example (Semiconductors):  
+     - **Upstream**: Equipment suppliers (ASML), Materials suppliers (Shin-Etsu), EDA software providers (SNPS)  
+     - **Downstream**: Consumer electronics (AAPL), Automotive manufacturers (TSLA), Data centers (AMZN, GOOG)
+3. **Perform Search**: Within the specified "Year" and "Month," search using keywords related to the entire ecosystem (including upstream and downstream). Focus on major earnings releases, M&A activity, technological breakthroughs, supply chain changes, macro policy impacts, significant contracts/orders, etc.
+4. **Filter & Rank**: From search results, rank events based on their **importance and impact** on the industry. Initially select ~15-20 candidate news items.
+5. **Ensure Constraints**: Among candidates, prioritize at least 2 upstream/downstream news items. Then, select the most important and influential core sector news to reach exactly 10 items. If upstream/downstream events are insufficient, replace lower-impact core stock news to meet the constraint.
+6. **Format Output**: Present the final 10 news items strictly following the “Output Requirements” format.
+
+---
+
+**Please begin the task.**
+    """
+
+
+# --------------------------------------------------------------------------------------------------------------------
+
+
+# 生成量化分析的prompt
 def quantization_prompt(stock_code: str, news: str) -> str:
     return f"""You are a top-tier equity strategist who blends deep fundamental analysis with real-time market intelligence. Your process involves verifying a core event, analyzing its strategic impact on the industry ecosystem, gauging the surrounding public sentiment, and then synthesizing these inputs into a robust, quantitative assessment for predictive models.
 

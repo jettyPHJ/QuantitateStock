@@ -159,7 +159,7 @@ def get_stock_codes(block_code: str):
             result_list = ft.build_translated_data_map(wset_result.Fields, wset_result.Data)["wind_code"]
         return result_list
     except Exception as e:
-        print(f"❌ 获取板块 {block_code} 股票列表失败: {e}")
+        print(f"[Error] 获取板块 {block_code} 股票列表失败: {e}")
         return []
 
 

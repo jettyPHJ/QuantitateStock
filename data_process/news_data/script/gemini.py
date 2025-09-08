@@ -1,9 +1,10 @@
 from google import genai
 from google.genai import types
-from data_process.finance_data.script.wind import get_price_change_records
+from data_process.finance_data.script.wind import get_price_change_records, get_stock_codes
 from utils.prompt import get_analyse_records
-from utils.prompt import Evaluation
-from utils.analyzer import ModelAnalyzer
+from utils.prompt import Evaluation, RelatedNewsRecord
+from utils.analyzer import ModelAnalyzer, Assistant
+from utils.block import Block
 
 
 class GeminiAnalyzer(ModelAnalyzer):
@@ -33,33 +34,54 @@ class GeminiAnalyzer(ModelAnalyzer):
             thinking_config=types.ThinkingConfig(thinking_budget=256),
         )
         response = self.client.models.generate_content(
-            model="gemini-2.5-flash",
+            model="gemini-2.5-pro",
             contents=prompt,
             config=config,
         )
-        return response.text
+        format_text = Assistant.format_important_news(response.text)
+        return format_text
 
-    def request_news_quantization(self, prompt: str) -> str:
-        """请求 Gemini 对新闻进行评分"""
+    def request_related_news(self, prompt: str) -> str:
+        """请求 Gemini 获取板块相关新闻"""
+        grounding_tool = types.Tool(google_search=types.GoogleSearch())
+
         config = types.GenerateContentConfig(
             temperature=0.1,
             max_output_tokens=1024,
-            thinking_config=types.ThinkingConfig(thinking_budget=512),
-            response_mime_type="application/json",
-            response_schema=list[Evaluation],
+            tools=[grounding_tool],
+            thinking_config=types.ThinkingConfig(thinking_budget=128),
         )
         response = self.client.models.generate_content(
             model="gemini-2.5-flash",
             contents=prompt,
             config=config,
         )
-        return response.text
+        format_text = Assistant.format_related_news(response.text)
+        return format_text
+
+    def request_news_quantization(self, prompt: str) -> str:
+        """请求 Gemini 对新闻进行评分"""
+        config = types.GenerateContentConfig(
+            temperature=0.1,
+            max_output_tokens=1024,
+            thinking_config=types.ThinkingConfig(thinking_budget=1024),
+            response_mime_type="application/json",
+            response_schema=list[Evaluation],
+        )
+        response = self.client.models.generate_content(
+            model="gemini-2.5-pro",
+            contents=prompt,
+            config=config,
+        )
+        format_text = Assistant.format_quantization(response.text)
+        return format_text
 
 
 # --------------------- 测试入口 ---------------------
 if __name__ == "__main__":
     analyzer = GeminiAnalyzer()
 
+    # ------生成重要新闻------
     stock_code = "9988.HK"
     block_code = "1000069991000000"
     year = 2025
@@ -68,8 +90,20 @@ if __name__ == "__main__":
     analyse_records = get_analyse_records(price_changes)
 
     news = analyzer.get_important_news(stock_code, analyse_records[0])
-    print("Gemini 新闻：", news)
+    print("Gemini 重要新闻：", news)
 
+    # -------生成相关新闻-------
+
+    # record = RelatedNewsRecord(
+    #     year=2025,
+    #     month=8,
+    #     sector_name="Semiconductor products",
+    #     core_stock_tickers=get_stock_codes(Block.get("半导体产品").code),
+    # )
+    # news = analyzer.get_related_news(record)
+    # print("Gemini 相关新闻：", news)
+
+    # -----生成新闻量化结果-----
     # evaluations_str = analyzer.evaluate_news(stock_code, 2025, 3, news)
     # print("Gemini 评分：", evaluations_str)
 
