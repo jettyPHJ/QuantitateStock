@@ -10,7 +10,7 @@ from utils.prompt import RelatedNewsRecord, related_news_prompt
 from utils.block import Block
 import utils.prompt as pt
 
-start_year = 2023
+start_year = 2025
 
 
 class RelatedNewsDBManager:
@@ -84,7 +84,7 @@ class RelatedNewsDBManager:
             '''
             self.cursor.execute(query, (month, news_text, last_updated))
             self.conn.commit()
-            print(f"[INFO] 已写入 {self.sector_name} {year}-{month:02d} 的相关新闻")
+            print(f"[INFO] 已写入 {self.sector_name} 板块 {year}-{month:02d} 的相关新闻")
 
         except Exception as e:
             print(f"[ERROR] 写入数据库失败 ({self.db_file} -> {table_name}): {e}")
@@ -120,7 +120,7 @@ class RelatedNewsDBManager:
                     # print(f"[DEBUG] 数据已存在，跳过: {self.sector_name} {year}-{month:02d}")
                     continue
 
-                print(f"[INFO] 正在为 {self.sector_name} 获取 {year}-{month:02d} 的新闻...")
+                print(f"[INFO] 正在获取 {self.sector_name} 板块 {year}-{month:02d} 的新闻...")
                 try:
                     record = RelatedNewsRecord(year, month, self.sector_name, self.core_stock_tickers)
                     response_text = self.analyzer.get_related_news(record)

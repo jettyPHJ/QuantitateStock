@@ -9,7 +9,7 @@ import utils.prompt as pt
 from datetime import datetime
 import time
 
-start_year = 2020
+start_year = 2025
 
 
 class ImportantNewsDBManager:
@@ -91,10 +91,11 @@ class ImportantNewsDBManager:
             field_name = f"{model_name.lower()}_news"
             self._ensure_model_field_exists(model_name)
 
-            news_text = news_text.strip()
             if not news_text:
                 print(f"[WARN] 空新闻内容，跳过写入: {record.date}")
                 return
+
+            news_text = news_text.strip()
 
             # 检查记录是否已存在（按唯一 date）
             self.cursor.execute(f"SELECT id FROM {self.table_name} WHERE date = ?", (record.date.isoformat(),))
@@ -175,11 +176,12 @@ class ImportantNewsDBManager:
 
                 try:
                     news = self.analyzer.get_important_news(self.stock_code, record)
-                    self.save_news(record, news, model_name)
-                    time.sleep(2)  # 避免请求过于频繁
                 except Exception as e:
-                    print(f"[ERROR] {self.stock_code}_{date_str} 生成或写入失败: {e}")
-                    self.conn.rollback()
+                    print(f"[ERROR] {self.stock_code}_{date_str} 获取新闻失败: {e}")
+                    continue
+
+                self.save_news(record, news, model_name)
+                time.sleep(2)  # 避免请求过于频繁
 
     def __del__(self):
         """析构时自动释放资源"""

@@ -3,7 +3,7 @@ from google.genai import types
 from data_process.finance_data.script.wind import get_price_change_records, get_stock_codes
 from utils.prompt import get_analyse_records
 from utils.prompt import Evaluation, RelatedNewsRecord
-from utils.analyzer import ModelAnalyzer, Assistant
+from utils.analyzer import ModelAnalyzer, retry
 from utils.block import Block
 
 
@@ -24,6 +24,7 @@ class GeminiAnalyzer(ModelAnalyzer):
             raise ValueError("未找到 Gemini 的 API Key")
         return genai.Client(api_key=self.api_key)
 
+    @retry()
     def request_important_news(self, prompt: str) -> str:
         """请求 Gemini 获取新闻要点"""
         grounding_tool = types.Tool(google_search=types.GoogleSearch())
@@ -38,9 +39,9 @@ class GeminiAnalyzer(ModelAnalyzer):
             contents=prompt,
             config=config,
         )
-        format_text = Assistant.format_important_news(response.text)
-        return format_text
+        return response.text
 
+    @retry()
     def request_related_news(self, prompt: str) -> str:
         """请求 Gemini 获取板块相关新闻"""
         grounding_tool = types.Tool(google_search=types.GoogleSearch())
@@ -56,9 +57,9 @@ class GeminiAnalyzer(ModelAnalyzer):
             contents=prompt,
             config=config,
         )
-        format_text = Assistant.format_related_news(response.text)
-        return format_text
+        return response.text
 
+    @retry()
     def request_news_quantization(self, prompt: str) -> str:
         """请求 Gemini 对新闻进行评分"""
         config = types.GenerateContentConfig(
@@ -73,8 +74,7 @@ class GeminiAnalyzer(ModelAnalyzer):
             contents=prompt,
             config=config,
         )
-        format_text = Assistant.format_quantization(response.text)
-        return format_text
+        return response.text
 
 
 # --------------------- 测试入口 ---------------------

@@ -309,29 +309,35 @@ Your task is: For a given industry sector, within a specified year and month, us
 - **Core Stock Tickers**: {record.core_stock_tickers}
 
 # Output Requirements
-1. **Number of Events**: Exactly 10 news items, no more, no less.
-2. **Format**: Each news item must include the following two fields and strictly follow this format:
-   - **Event Title**: [Concise summary of the event, ≤25 words]
-   - **Date**: YYYY-MM-DD
-3. **Content Requirements**:
-   - **a. Highly Relevant**: All events must be highly relevant to the specified sector.
-   - **b. Key Constraint**: Among the 10 news items, **at least 2** must clearly relate to the sector’s **upstream or downstream** companies.
-   - **c. Ecosystem Perspective**: Events do not need to explicitly mention the “core stock tickers,” but should revolve around the ecosystem in which these companies operate.
+
+1. **Number of Events**: Exactly 10 news items, no more, no less.  
+2. **Format**: Each news item must include the following two fields and strictly follow this format:  
+   - **Event Title**: [Concise summary of the event, ≤25 words]  
+   - **Date**: YYYY-MM-DD  
+3. **Content Requirements**:  
+   - **a. Highly Relevant**: All events must be highly relevant to the specified sector.  
+   - **b. Key Constraint**: Among the 10 news items, **at least 2** must clearly relate to the sector’s **upstream or downstream** companies.  
+   - **c. Ecosystem Perspective**: Events do not need to explicitly mention the “core stock tickers,” but should revolve around the ecosystem in which these companies operate.  
+   - **d. Strict Date Requirement**: **Only include news with a clearly verifiable and specific publication date within the given Year and Month (YYYY-MM-DD). Discard any events with vague or missing dates (e.g., “recently,” “last week,” “in Q1”).**
+
 
 # Workflow & Thought Process
-1. **Understand the Ecosystem**: First, based on the "Sector Name" and "Core Stock Tickers," quickly construct an internal map of the sector's ecosystem.
+
+1. **Understand the Ecosystem**: First, based on the "Sector Name" and "Core Stock Tickers," quickly construct an internal map of the sector's ecosystem.  
 2. **Define Upstream & Downstream**: Clearly identify what constitutes upstream and downstream for this sector.  
    - Example (Semiconductors):  
      - **Upstream**: Equipment suppliers (ASML), Materials suppliers (Shin-Etsu), EDA software providers (SNPS)  
-     - **Downstream**: Consumer electronics (AAPL), Automotive manufacturers (TSLA), Data centers (AMZN, GOOG)
-3. **Perform Search**: Within the specified "Year" and "Month," search using keywords related to the entire ecosystem (including upstream and downstream). Focus on major earnings releases, M&A activity, technological breakthroughs, supply chain changes, macro policy impacts, significant contracts/orders, etc.
-4. **Filter & Rank**: From search results, rank events based on their **importance and impact** on the industry. Initially select ~15-20 candidate news items.
-5. **Ensure Constraints**: Among candidates, prioritize at least 2 upstream/downstream news items. Then, select the most important and influential core sector news to reach exactly 10 items. If upstream/downstream events are insufficient, replace lower-impact core stock news to meet the constraint.
+     - **Downstream**: Consumer electronics (AAPL), Automotive manufacturers (TSLA), Data centers (AMZN, GOOG)  
+3. **Perform Search**: Within the specified "Year" and "Month," search using keywords related to the entire ecosystem (including upstream and downstream). Focus on major earnings releases, M&A activity, technological breakthroughs, supply chain changes, macro policy impacts, significant contracts/orders, etc.  
+4. **Filter & Rank**: From search results, rank events based on their **importance and impact** on the industry. Initially select ~15-20 candidate news items.  
+   - **Eliminate any events without an exact publication date (YYYY-MM-DD) in the specified Year and Month.**  
+   - Ensure at least 2 upstream/downstream events remain in the final list.  
+5. **Ensure Constraints**: Among candidates, prioritize at least 2 upstream/downstream news items. Then, select the most important and influential core sector news to reach exactly 10 items. If upstream/downstream events are insufficient, replace lower-impact core stock news to meet the constraint.  
 6. **Format Output**: Present the final 10 news items strictly following the “Output Requirements” format.
 
 ---
 
-**Please begin the task.**
+**Please begin the task and answer in English.**
     """
 
 
