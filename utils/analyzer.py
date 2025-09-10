@@ -182,12 +182,13 @@ class ModelAnalyzer(ABC):
 
         return response
 
-    def get_news_quantization(self, stock_code: str, news: str) -> str:
-        if not news:
-            raise ValueError("新闻为空，无法解析。")
-        prompt = pt.quantization_prompt(stock_code, news)
+    def get_news_quantization(self, stock_code: str, news_title: str, date: str) -> str:
+        if not news_title:
+            raise ValueError("新闻标题为空，无法解析。")
+        prompt = pt.quantization_prompt(stock_code, news_title, date)
         try:
             response_text = self.request_news_quantization(prompt)
+            print(response_text)
         except Exception as e:
             raise ValueError(f"[WARN] request_news_quantization 调用失败: {e}")
         try:

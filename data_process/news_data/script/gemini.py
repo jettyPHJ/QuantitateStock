@@ -26,7 +26,7 @@ class GeminiAnalyzer(ModelAnalyzer):
 
     @retry()
     def request_important_news(self, prompt: str) -> str:
-        """请求 Gemini 获取新闻要点"""
+        """请求 Gemini 获取重要新闻"""
         grounding_tool = types.Tool(google_search=types.GoogleSearch())
         config = types.GenerateContentConfig(
             temperature=0.1,
@@ -43,7 +43,7 @@ class GeminiAnalyzer(ModelAnalyzer):
 
     @retry()
     def request_related_news(self, prompt: str) -> str:
-        """请求 Gemini 获取板块相关新闻"""
+        """请求 Gemini 获取相关新闻"""
         grounding_tool = types.Tool(google_search=types.GoogleSearch())
 
         config = types.GenerateContentConfig(
@@ -62,12 +62,13 @@ class GeminiAnalyzer(ModelAnalyzer):
     @retry()
     def request_news_quantization(self, prompt: str) -> str:
         """请求 Gemini 对新闻进行评分"""
+        grounding_tool = types.Tool(google_search=types.GoogleSearch())
+
         config = types.GenerateContentConfig(
             temperature=0.1,
-            max_output_tokens=1024,
-            thinking_config=types.ThinkingConfig(thinking_budget=1024),
-            response_mime_type="application/json",
-            response_schema=list[Evaluation],
+            max_output_tokens=2048,
+            tools=[grounding_tool],
+            thinking_config=types.ThinkingConfig(thinking_budget=4096),
         )
         response = self.client.models.generate_content(
             model="gemini-2.5-pro",
@@ -82,18 +83,17 @@ if __name__ == "__main__":
     analyzer = GeminiAnalyzer()
 
     # ------生成重要新闻------
-    stock_code = "9988.HK"
-    block_code = "1000069991000000"
-    year = 2025
+    # stock_code = "9988.HK"
+    # block_code = "1000069991000000"
+    # year = 2025
 
-    price_changes = get_price_change_records(stock_code, block_code, f"{year}-08-25", f"{year}-12-31")
-    analyse_records = get_analyse_records(price_changes)
+    # price_changes = get_price_change_records(stock_code, block_code, f"{year}-08-25", f"{year}-12-31")
+    # analyse_records = get_analyse_records(price_changes)
 
-    news = analyzer.get_important_news(stock_code, analyse_records[0])
-    print("Gemini 重要新闻：", news)
+    # news = analyzer.get_important_news(stock_code, analyse_records[0])
+    # print("Gemini 重要新闻：", news)
 
     # -------生成相关新闻-------
-
     # record = RelatedNewsRecord(
     #     year=2025,
     #     month=8,
@@ -104,8 +104,13 @@ if __name__ == "__main__":
     # print("Gemini 相关新闻：", news)
 
     # -----生成新闻量化结果-----
-    # evaluations_str = analyzer.evaluate_news(stock_code, 2025, 3, news)
-    # print("Gemini 评分：", evaluations_str)
+    important_news = "Wall Street analysts and Nvidia's CEO, Jensen Huang, were dismissing the threat posed by the Chinese AI startup DeepSeek."
+    date = "2025-01-28"
 
-    # evaluations = analyzer.deserialize_evaluations(evaluations_str)
-    # print("反序列化结果：", evaluations)
+    response = analyzer.get_news_quantization("NVDA.O", important_news, date)
+    print("Gemini 新闻量化结果：", response)
+
+    # related_news = "TSMC Reports Strong January Revenue, Up 35.9% Year-over-Year, Despite Earthquake Impacting Q1 Outlook."
+    # date = "2025-01-10"
+
+    # analyzer.get_news_quantization("NVDA.O", related_news, date)

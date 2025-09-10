@@ -347,95 +347,96 @@ Your task is: For a given industry sector, within a specified year and month, us
 
 
 # 生成量化分析的prompt
-def quantization_prompt(stock_code: str, news: str) -> str:
-    return f"""You are a top-tier equity strategist who blends deep fundamental analysis with real-time market intelligence. Your process involves verifying a core event, analyzing its strategic impact on the industry ecosystem, gauging the surrounding public sentiment, and then synthesizing these inputs into a robust, quantitative assessment for predictive models.
-
+def quantization_prompt(stock_code: str, news_title: str, date: str) -> str:
+    return (
+        f"You are a top-tier equity strategist who combines deep fundamental analysis with rigorous event-driven intelligence. "
+        f"Your critical skill is to anchor your entire analysis to a specific point in time (the `Analysis_Date`), rigorously avoiding any hindsight bias. "
+        f"Your process involves verifying the factual core of an event, analyzing its strategic impact, gauging the public/media sentiment available *at that time*, and synthesizing these inputs into a structured, quantitative assessment."
+        f"""
 ### MISSION BRIEF
 - **Stock:** {stock_code}
-- **Event / Topic:** {news}
+- **Event / Topic:** {news_title}
+- **Analysis_Date:** {date}  **(This is the anchor date for all your knowledge and analysis)**
 
 ---
 
 ### ANALYTICAL WORKFLOW (SOP)
-Execute the following 5-phase workflow.
+Execute the following 5-phase workflow, operating as an analyst on the `Analysis_Date`.
 
-**Phase 1: Intelligence Gathering & Verification**
-- Use your search capabilities to investigate the specified Event/Topic.
-- **Objective 1 (Fact-Finding):** Find 1-2 primary news sources to establish the core facts.
-- **Objective 2 (Sentiment-Gauging):** Broaden your search to include financial news commentary, forums, and social media to understand the public and investor reaction.
+**Phase 1: Time-Bound Intelligence Gathering & Verification**
+- **Constraint: You must operate as if you are on the `Analysis_Date`. Strictly exclude any information, events, or outcomes that were not publicly known at that time.**
+- **Objective 1 (Fact-Finding):** Use your search capabilities to find primary sources that establish the core facts of the event, as they were reported **on or before the `Analysis_Date`**.
+- **Objective 2 (Sentiment-Gauging):** Broaden your search to understand the public and investor reaction **based on commentary, articles, and forum discussions published around the `Analysis_Date`**.
 
 **Phase 2: Strategic Ecosystem Analysis (Fundamental & Rational View)**
-- **Ecosystem Context:** Briefly map the company's position, key competitors, and value chain.
-- **Impact Vectors:** Analyze the event's Horizontal (peer comparison) and Vertical (value chain) impact.
+- **Ecosystem Context:** Briefly map the company's position, key competitors, and value chain **as they existed on the `Analysis_Date`**.
+- **Impact Vectors:** Analyze the event's potential Horizontal (peer comparison) and Vertical (value chain) impact based on the information available at that time.
 
 **Phase 3: Market Sentiment Analysis (Market & Emotional View)**
-- **Summarize the Narrative:** What is the dominant story the market is telling about this event?
-- **Gauge the Tone:** Is the overall sentiment positive, negative, or mixed? Is it driven by hype, fear, or rational analysis?
+- **Summarize the Narrative:** What was the dominant story the market was telling about this event **around the `Analysis_Date`**?
+- **Gauge the Tone:** Was the overall sentiment positive, negative, or mixed? Was it driven by hype, fear, or rational analysis **at that time**?
 
 **Phase 4: Synthesized Causal Chain & Mismatch Detection**
-- **Synthesize:** Integrate your strategic analysis (Phase 2) and market sentiment (Phase 3) to construct the final causal chain using the 4-step structure.
-- **Detect Mismatch:** **Crucially, if the direction of the fundamental impact (causal_impact_score) and the market sentiment (sentiment_score) are opposed, you must explicitly flag this mismatch.**
+- **Synthesize:** Integrate your strategic analysis (Phase 2) and market sentiment (Phase 3) to construct the final causal chain.
+- **Detect Mismatch:** Crucially, if the direction of the perceived fundamental impact and the market sentiment were opposed, you must explicitly flag this mismatch.
 
 **Phase 5: Final Quantification**
-- Based on your complete analysis, provide all scores for the framework below.
+- Based on your complete, **time-bound analysis**, provide all scores for the framework below.
 
 ---
 
-### FINAL REPORT (Strictly JSON format)
-{{
-  "intelligence_summary": {{
-    "verified_event_summary": "A concise, factual summary of the core event.",
-    "market_sentiment_summary": "A summary of the prevailing narrative and emotional tone from public/media discourse."
-  }},
-  "analytical_synthesis": {{
-    "sentiment_fundamental_mismatch": {{
-      "is_mismatch": "[true or false]",
-      "description": "If true, briefly describe the nature of the mismatch (e.g., 'Market sentiment is highly negative due to headline risk, but the underlying fundamental impact appears neutral to slightly positive.')."
-    }}
-  }},
-  "impact_classification": {{
-    "primary_driver": "[Demand_Shock | Supply_Shock | Regulatory_Shock | Competitive_Shock | Operational_Shock | Tech_Shock]",
-    "strategic_consequence": "[TAM_Change | Market_Share_Change | Cost_Structure_Change | Pricing_Power_Change | Other]"
-  }},
-  "causal_chain": {{
-    "trigger_event": "The specific factual event.",
-    "ecosystem_impact": "How the competitive and value chain dynamics are altered.",
-    "shift_in_core_expectation": "The core long-term belief about the company that has now changed.",
-    "ultimate_financial_consequence": "The final predicted impact on financials and valuation."
-  }},
-  "quantitative_scores": {{
-    "causal_impact_score": {{
-      "value": "[-10 to +10]",
-      "description": "The analyst's assessment of the event's fundamental, rational impact on the company's long-term value."
-    }},
-    "uncertainty_score": {{
-      "value": "[1-10]",
-      "description": "Degree of uncertainty introduced. 1=Clear Outcome, 10=High Uncertainty."
-    }},
-    "alpha_score": {{
-      "value": "[1-10]",
-      "description": "Company-specific (alpha) vs sector-wide (beta) impact."
-    }},
-    "power_shift_score": {{
-      "value": "[-5 to +5]",
-      "description": "Shift in bargaining power along the value chain."
-    }},
-    "sentiment_score": {{
-        "value": "[-10 to +10]",
-        "description": "A direct measure of the prevailing emotional tone in public/media discourse. -10=Panic/Fear, +10=Hype/Euphoria."
-    }},
-    "time_horizon_fundamental": {{
-      "value": "[1, 2, or 3]",
-      "description": "Expected duration of the *fundamental* impact: 1=Short (<3M), 2=Medium (3-12M), 3=Long (>1Y)."
-    }},
-    "time_horizon_sentiment": {{
-      "value": "[1, 2, or 3]",
-      "description": "Expected duration of the *sentiment* impact: 1=Short (<1M), 2=Medium (1-3M), 3=Long (>3M)."
-    }},
-    "conviction_score": {{
-        "value": "[1-10]",
-        "description": "Analyst's confidence in the overall analysis. 1=Speculative, 10=High-Conviction."
-    }}
-  }}
-}}
-"""
+### FINAL REPORT (Strictly Structured Output with Rationale)
+
+- **Intelligence Summary**
+  - **Verified Event Summary** → A concise, factual summary of the core event. No speculation.
+  - **Market Sentiment Summary** → A clear summary of the prevailing narrative and emotional tone in public/media discourse.
+
+- **Analytical Synthesis**
+  - **Sentiment–Fundamental Mismatch**
+    - **Is Mismatch** → [true | false]
+    - **Description** → If true, briefly explain (e.g., “Market sentiment is strongly negative due to headline risk, but the underlying fundamentals appear neutral to slightly positive.”)
+
+- **Impact Classification**
+  - **Primary Driver** → [Demand_Shock | Supply_Shock | Regulatory_Shock | Competitive_Shock | Operational_Shock | Tech_Shock]
+  - **Strategic Consequence** → [TAM_Change | Market_Share_Change | Cost_Structure_Change | Pricing_Power_Change | Other]
+
+- **Causal Chain**
+  - **Trigger Event** → The specific factual event.
+  - **Ecosystem Impact** → How competitive dynamics and value chain are altered.
+  - **Shift in Core Expectation** → The key long-term belief about the company that has changed.
+  - **Ultimate Financial Consequence** → The predicted final impact on financials and valuation.
+
+- **Quantitative Scores** (Provide a score AND a brief rationale for each)
+
+  - **Causal Impact Score** → [-2, -1, 0, 1, 2]  
+    - **Anchors:** +2 = Significant Positive Impact; +1 = Mildly Positive; 0 = Neutral; -1 = Mildly Negative; -2 = Significant Negative Impact.  
+    - **Rationale:** [Justify based on the event's fundamental impact on long-term value]  
+
+  - **Uncertainty Score** → [1, 2, 3, 4, 5]  
+    - **Anchors:** 1 = Clear Outcome; 3 = Moderate Uncertainty; 5 = High Uncertainty / Wide Range of Outcomes.  
+    - **Rationale:** [Justify based on the predictability of the event's consequences]  
+
+  - **Alpha Score** → [1, 2, 3, 4, 5]  
+    - **Anchors:** 1 = Purely Sector-wide (beta); 3 = Mix of Company/Sector; 5 = Purely Company-specific (alpha).  
+    - **Rationale:** [Justify based on how unique the impact is to the company vs. its peers]  
+
+  - **Power Shift Score** → [-2, -1, 0, 1, 2]  
+    - **Anchors:** +2 = Major Power Gain; 0 = No Change; -2 = Major Power Loss (vs. suppliers/customers).  
+    - **Rationale:** [Justify based on the shift in bargaining power along the value chain]  
+
+  - **Sentiment Score** → [-2, -1, 0, 1, 2]  
+    - **Anchors:** +2 = Hype/Euphoria; 0 = Neutral/Mixed; -2 = Panic/Fear.  
+    - **Rationale:** [Justify based on the observed emotional tone in public/media discourse]  
+
+  - **Time Horizon – Fundamental** → [1, 2, 3]  
+    - **Anchors:** 1 = Short-Term (<3M); 2 = Medium-Term (3–12M); 3 = Long-Term (>1Y).  
+    - **Rationale:** [Justify your choice for the duration of the fundamental business impact]  
+
+  - **Time Horizon – Sentiment** → [1, 2, 3]  
+    - **Anchors:** 1 = Short-Term (<1M); 2 = Medium-Term (1–3M); 3 = Long-Term (>3M).  
+    - **Rationale:** [Justify your choice for the likely duration of the market sentiment impact]  
+
+  - **Conviction Score** → [1, 2, 3, 4, 5]  
+    - **Anchors:** 1 = Low Conviction/Speculative; 3 = Medium Conviction; 5 = High Conviction/High Certainty.  
+    - **Rationale:** [Justify your confidence level in the overall analysis and assigned scores] 
+""")
