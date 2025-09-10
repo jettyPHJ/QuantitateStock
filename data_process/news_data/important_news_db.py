@@ -192,21 +192,20 @@ class ImportantNewsDBManager:
             pass
 
 
-# 生成板块配置文件的子结构对应股票的新闻数据
-def create_important_news_db(entry_key: str):
+def create_important_news_db(parent_name: str):
     """
-    创建一个包含指定板块所有股票新闻数据的 sqlite 数据库。
+    创建一个包含指定父节点下所有股票新闻数据的 sqlite 数据库。
     """
-    sub_items = Block.get_sub_items(entry_key)
+    sub_items = Block.get_items_by_parent(parent_name)
     for _, item in sub_items.items():
-        print(f"[INFO] 开始搜寻 {item.desc} 板块的股票新闻")
-        stock_codes = get_stock_codes(item.code)
+        print(f"[INFO] 开始搜寻 {item.name_cn} 板块的股票新闻")
+        stock_codes = get_stock_codes(item.id)
         if len(stock_codes) == 0:
-            print(f"[INFO] {item.desc} 板块没有股票")
+            print(f"[INFO] {item.name_cn} 板块没有股票")
             continue
         for stock_code in stock_codes:
-            ImportantNewsDBManager(item.code, stock_code)
-            print(f"[INFO] {item.desc} 板块_{stock_code} 新闻收集完成")
+            ImportantNewsDBManager(item.id, stock_code)
+            print(f"[INFO] {item.name_cn} 板块_{stock_code} 新闻收集完成")
 
 
 # --------------------- 测试入口 ---------------------

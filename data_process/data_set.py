@@ -218,6 +218,6 @@ def collate_fn(batch):
 
 # --------------------- 测试入口 ---------------------
 if __name__ == "__main__":
-    dataset = FinancialDataset(block_codes=[Block.get("标普500指数").code], update=True)
+    dataset = FinancialDataset(block_codes=[Block.get("标普500指数").id], update=True)
     train_set, val_set = dataset.build_datasets()
     print(f"Train samples: {len(train_set)}, Val samples: {len(val_set)}")

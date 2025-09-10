@@ -1,273 +1,773 @@
-# 临时记录
-US_芯片: 1000041891000000
-US_半导体: 1000041892000000
-US_无人驾驶: 1000041895000000
-纳斯达克计算机指数: 1000010326000000
-标普500指数: a005010800000000
+芯片:
+  id: "1000041891000000"
+  name_en: US Chips
+  description_en: Companies engaged in the design, manufacture, and sale of semiconductor chips.
 
-# 美股
+半导体:
+  id: "1000041892000000"
+  name_en: US Semiconductors
+  description_en: Companies producing semiconductor products and components.
+
+无人驾驶:
+  id: "1000041895000000"
+  name_en: US Autonomous Driving
+  description_en: Companies developing autonomous driving technologies and self-driving vehicles.
+
+纳斯达克计算机指数:
+  id: "1000010326000000"
+  name_en: NASDAQ Computer Index
+  description_en: Stock index tracking major US computer and technology companies.
+
+标普500指数:
+  id: "a005010800000000"
+  name_en: S&P 500 Index
+  description_en: Broad US stock market index representing 500 large-cap companies.
+
 SP500_WIND行业类:
   能源:
     能源II:
       能源设备与服务:
-        石油天然气钻井: 1000015080000000
-        石油天然气设备与服务: 1000015081000000       
+        石油天然气钻井:
+          id: "1000015080000000"
+          name_en: Oil & Gas Drilling
+          description_en: Companies engaged in drilling oil and gas wells.
+        石油天然气设备与服务:
+          id: "1000015081000000"
+          name_en: Oil & Gas Equipment & Services
+          description_en: Providers of equipment and services supporting oil and gas operations.
       石油、天然气与供销费用燃料:
-        综合性石油天然气: 1000015082000000
-        石油天然气勘探与生产: 1000015083000000
-        石油与天然气的炼制和销售: 1000015084000000
-        石油与天然气的储存和运输: 1000015085000000
-        煤炭与消费用燃料: 1000015086000000
+        综合性石油天然气:
+          id: "1000015082000000"
+          name_en: Integrated Oil & Gas
+          description_en: Companies operating across multiple segments of the oil and gas value chain.
+        石油天然气勘探与生产:
+          id: "1000015083000000"
+          name_en: Oil & Gas Exploration & Production
+          description_en: Companies engaged in exploring and producing oil and natural gas.
+        石油与天然气的炼制和销售:
+          id: "1000015084000000"
+          name_en: Oil & Gas Refining & Marketing
+          description_en: Companies refining petroleum and marketing oil & gas products.
+        石油与天然气的储存和运输:
+          id: "1000015085000000"
+          name_en: Oil & Gas Storage & Transportation
+          description_en: Companies transporting and storing crude oil, natural gas, and refined products.
+        煤炭与消费用燃料:
+          id: "1000015086000000"
+          name_en: Coal & Consumable Fuels
+          description_en: Companies mining coal and producing other consumable fuels.
   材料:
     材料II:
       化工:
-        基础化工: 1000015087000000
-        化纤: 1000015088000000
-        多元化工: 1000015089000000
-        化肥与农用化工: 1000015090000000
-        工业气体: 1000015091000000
-        特种化工: 1000015092000000
+        基础化工:
+          id: "1000015087000000"
+          name_en: Basic Chemicals
+          description_en: Companies producing fundamental chemical products such as industrial chemicals and raw materials.
+        化纤:
+          id: "1000015088000000"
+          name_en: Chemical Fibers
+          description_en: Companies manufacturing synthetic fibers and related materials.
+        多元化工:
+          id: "1000015089000000"
+          name_en: Diversified Chemicals
+          description_en: Companies operating in multiple chemical product segments.
+        化肥与农用化工:
+          id: "1000015090000000"
+          name_en: Fertilizers & Agricultural Chemicals
+          description_en: Companies producing fertilizers and other agricultural chemicals.
+        工业气体:
+          id: "1000015091000000"
+          name_en: Industrial Gases
+          description_en: Companies supplying gases for industrial and commercial applications.
+        特种化工:
+          id: "1000015092000000"
+          name_en: Specialty Chemicals
+          description_en: Companies producing chemicals for specialized industrial or consumer applications.
       建材Ⅲ:
-        建材: 1000015093000000
+        建材:
+          id: "1000015093000000"
+          name_en: Building Materials
+          description_en: Companies producing materials used in construction and infrastructure.
       容器与包装:
-        金属与玻璃容器: 1000015094000000
-        纸包装: 1000015095000000
+        金属与玻璃容器:
+          id: "1000015094000000"
+          name_en: Metal & Glass Containers
+          description_en: Companies manufacturing metal and glass packaging products.
+        纸包装:
+          id: "1000015095000000"
+          name_en: Paper Packaging
+          description_en: Companies producing paper-based packaging materials.
       金属、非金属与采矿:
-        铝: 1000015096000000
-        金属非金属: 1000015097000000
-        黄金: 1000015098000000
-        贵金属与矿石: 1000015099000000
-        白银: 1000015100000000
-        钢铁: 1000015101000000
-        铜: 1000023431000000
+        铝:
+          id: "1000015096000000"
+          name_en: Aluminum
+          description_en: Companies producing aluminum and related products.
+        金属非金属:
+          id: "1000015097000000"
+          name_en: Metals & Non-Metals
+          description_en: Companies extracting or processing metallic and non-metallic minerals.
+        黄金:
+          id: "1000015098000000"
+          name_en: Gold
+          description_en: Companies engaged in gold mining and refining.
+        贵金属与矿石:
+          id: "1000015099000000"
+          name_en: Precious Metals & Ores
+          description_en: Companies producing precious metals and ores.
+        白银:
+          id: "1000015100000000"
+          name_en: Silver
+          description_en: Companies engaged in silver mining and processing.
+        钢铁:
+          id: "1000015101000000"
+          name_en: Steel
+          description_en: Companies producing steel and related products.
+        铜:
+          id: "1000023431000000"
+          name_en: Copper
+          description_en: Companies mining and processing copper.
       纸与林木产品:
-        林木产品: 1000015102000000
-        纸制品: 1000015103000000
+        林木产品:
+          id: "1000015102000000"
+          name_en: Forest Products
+          description_en: Companies producing timber and related forest-derived products.
+        纸制品:
+          id: "1000015103000000"
+          name_en: Paper Products
+          description_en: Companies manufacturing paper and paper-based products.
   工业:
     资本货物:
       航空航天与国防Ⅲ:
-        航空航天与国防: 1000015104000000
+        航空航天与国防:
+          id: "1000015104000000"
+          name_en: Aerospace & Defense
+          description_en: Companies engaged in aerospace, defense, and related technologies.
       建筑产品Ⅲ:
-        建筑产品: 1000015105000000
+        建筑产品:
+          id: "1000015105000000"
+          name_en: Building Products
+          description_en: Companies producing materials and products used in construction.
       建筑与工程Ⅲ:
-        建筑与工程: 1000015106000000
+        建筑与工程:
+          id: "1000015106000000"
+          name_en: Construction & Engineering
+          description_en: Companies providing construction, engineering, and infrastructure services.
       电气设备:
-        电气部件与设备: 1000015107000000
-        重型电气设备: 1000015108000000
+        电气部件与设备:
+          id: "1000015107000000"
+          name_en: Electrical Components & Equipment
+          description_en: Companies manufacturing electrical components and devices.
+        重型电气设备:
+          id: "1000015108000000"
+          name_en: Heavy Electrical Equipment
+          description_en: Companies producing large-scale electrical equipment for industrial use.
       综合类Ⅲ:
-        综合类行业: 1000015109000000
+        综合类行业:
+          id: "1000015109000000"
+          name_en: Diversified Industrials
+          description_en: Companies operating across multiple industrial sectors.
       机械:
-        建筑机械与重型卡车: 1000015110000000
-        农业机械: 1000015111000000
-        工业机械: 1000015112000000
+        建筑机械与重型卡车:
+          id: "1000015110000000"
+          name_en: Construction Machinery & Heavy Trucks
+          description_en: Companies manufacturing heavy machinery and trucks for construction.
+        农业机械:
+          id: "1000015111000000"
+          name_en: Agricultural Machinery
+          description_en: Companies producing machinery for agricultural purposes.
+        工业机械:
+          id: "1000015112000000"
+          name_en: Industrial Machinery
+          description_en: Companies manufacturing machinery for industrial applications.
       贸易公司与工业品经销商Ⅲ:
-        贸易公司与工业品经销商: 1000015113000000
+        贸易公司与工业品经销商:
+          id: "1000015113000000"
+          name_en: Trading Companies & Distributors
+          description_en: Companies involved in distribution and trading of industrial goods.
     商业和专业服务:
       商业服务与用品:
-        商业印刷: 1000015114000000
-        环境与设施服务: 1000015115000000
-        办公服务与用品: 1000015116000000
-        综合支持服务: 1000015117000000
-        安全和报警服务: 1000015118000000
+        商业印刷:
+          id: "1000015114000000"
+          name_en: Commercial Printing
+          description_en: Companies providing printing services for commercial purposes.
+        环境与设施服务:
+          id: "1000015115000000"
+          name_en: Environmental & Facilities Services
+          description_en: Companies offering environmental management and facilities services.
+        办公服务与用品:
+          id: "1000015116000000"
+          name_en: Office Services & Supplies
+          description_en: Companies providing office supplies and related services.
+        综合支持服务:
+          id: "1000015117000000"
+          name_en: Comprehensive Support Services
+          description_en: Companies offering broad support services for businesses.
+        安全和报警服务:
+          id: "1000015118000000"
+          name_en: Security & Alarm Services
+          description_en: Companies providing security systems and monitoring services.
       专业服务:
-        人力资源与就业服务: 1000015119000000
-        调查和咨询服务: 1000015120000000
+        人力资源与就业服务:
+          id: "1000015119000000"
+          name_en: Human Resources & Employment Services
+          description_en: Companies offering staffing, HR, and employment services.
+        调查和咨询服务:
+          id: "1000015120000000"
+          name_en: Investigation & Consulting Services
+          description_en: Companies providing professional consulting and investigation services.
     运输:
       航空货运与物流Ⅲ:
-        航空货运与物流: 1000015121000000
+        航空货运与物流:
+          id: "1000015121000000"
+          name_en: Air Freight & Logistics
+          description_en: Companies engaged in air cargo transport and logistics solutions.
       航空Ⅲ:
-        航空: 1000015122000000
+        航空:
+          id: "1000015122000000"
+          name_en: Airlines
+          description_en: Companies providing passenger and cargo air transportation.
       海运Ⅲ:
-        海运: 1000015123000000
+        海运:
+          id: "1000015123000000"
+          name_en: Shipping
+          description_en: Companies engaged in maritime transport and related services.
       公路与铁路运输:
-        铁路运输: 1000015124000000
-        公路运输: 1000015125000000
+        铁路运输:
+          id: "1000015124000000"
+          name_en: Rail Transportation
+          description_en: Companies providing railway transport services.
+        公路运输:
+          id: "1000015125000000"
+          name_en: Road Transportation
+          description_en: Companies providing road freight and transport services.
       交通基础设施:
-        机场服务: 1000015126000000
-        公路与铁路: 1000015127000000
-        海港与服务: 1000015128000000
+        机场服务:
+          id: "1000015126000000"
+          name_en: Airport Services
+          description_en: Companies providing airport management and related services.
+        公路与铁路:
+          id: "1000015127000000"
+          name_en: Roads & Rail Infrastructure
+          description_en: Companies constructing and maintaining road and rail infrastructure.
+        海港与服务:
+          id: "1000015128000000"
+          name_en: Ports & Services
+          description_en: Companies managing seaports and related logistics services.
   可选消费:
     汽车与汽车零部件:
       汽车零配件:
-        机动车零配件与设备: 1000015129000000
-        轮胎与橡胶: 1000015130000000
+        机动车零配件与设备:
+          id: "1000015129000000"
+          name_en: Auto Parts & Equipment
+          description_en: Companies producing components and equipment for motor vehicles.
+        轮胎与橡胶:
+          id: "1000015130000000"
+          name_en: Tires & Rubber
+          description_en: Companies manufacturing tires and rubber products.
       汽车:
-        汽车制造: 1000015131000000
-        摩托车制造: 1000015132000000
+        汽车制造:
+          id: "1000015131000000"
+          name_en: Automobile Manufacturing
+          description_en: Companies producing passenger and commercial vehicles.
+        摩托车制造:
+          id: "1000015132000000"
+          name_en: Motorcycle Manufacturing
+          description_en: Companies producing motorcycles and related vehicles.
     耐用消费品与服装:
       家庭耐用消费品:
-        消费电子产品: 1000015133000000
-        家庭装饰品: 1000015134000000
-        住宅建筑: 1000015135000000
-        家用电器: 1000015136000000
-        家用器具与特殊消费品: 1000015137000000
+        消费电子产品:
+          id: "1000015133000000"
+          name_en: Consumer Electronics
+          description_en: Companies manufacturing electronic devices for consumers.
+        家庭装饰品:
+          id: "1000015134000000"
+          name_en: Home Furnishings
+          description_en: Companies producing home décor and furniture products.
+        住宅建筑:
+          id: "1000015135000000"
+          name_en: Residential Construction
+          description_en: Companies engaged in building residential properties.
+        家用电器:
+          id: "1000015136000000"
+          name_en: Home Appliances
+          description_en: Companies manufacturing appliances for household use.
+        家用器具与特殊消费品:
+          id: "1000015137000000"
+          name_en: Household Durables & Special Consumer Products
+          description_en: Companies producing durable household goods and specialty consumer items.
       休闲设备与用品:
-        休闲用品: 1000015138000000
-        摄影用品: 1000015139000000
+        休闲用品:
+          id: "1000015138000000"
+          name_en: Leisure Products
+          description_en: Companies producing recreational products and equipment.
+        摄影用品:
+          id: "1000015139000000"
+          name_en: Photographic Equipment
+          description_en: Companies manufacturing cameras, lenses, and related accessories.
       纺织品、服装与奢侈品:
-        服装、服饰与奢侈品: 1000015140000000
-        鞋类: 1000015141000000
-        纺织品: 1000015142000000
+        服装、服饰与奢侈品:
+          id: "1000015140000000"
+          name_en: Apparel, Accessories & Luxury Goods
+          description_en: Companies producing clothing, fashion accessories, and luxury items.
+        鞋类:
+          id: "1000015141000000"
+          name_en: Footwear
+          description_en: Companies manufacturing shoes and related products.
+        纺织品:
+          id: "1000015142000000"
+          name_en: Textiles
+          description_en: Companies producing fabrics and textile materials.
     消费者服务Ⅱ:
       酒店、餐馆与休闲Ⅲ:
-        赌场与赌博: 1000015143000000
-        酒店、度假村与豪华游轮: 1000015144000000
-        休闲设施: 1000015145000000
-        餐馆: 1000015146000000
+        赌场与赌博:
+          id: "1000015143000000"
+          name_en: Casinos & Gambling
+          description_en: Companies operating casinos and gambling services.
+        酒店、度假村与豪华游轮:
+          id: "1000015144000000"
+          name_en: Hotels, Resorts & Luxury Cruises
+          description_en: Companies managing hotels, resorts, and cruise services.
+        休闲设施:
+          id: "1000015145000000"
+          name_en: Leisure Facilities
+          description_en: Companies providing recreational and entertainment facilities.
+        餐馆:
+          id: "1000015146000000"
+          name_en: Restaurants
+          description_en: Companies operating restaurants and dining services.
       综合消费者服务Ⅲ:
-        教育服务: 1000015147000000
-        特殊消费者服务: 1000015148000000
+        教育服务:
+          id: "1000015147000000"
+          name_en: Education Services
+          description_en: Companies providing educational and training services.
+        特殊消费者服务:
+          id: "1000015148000000"
+          name_en: Specialty Consumer Services
+          description_en: Companies offering specialized consumer-oriented services.
     媒体:
       媒体Ⅲ:
-        广告: 1000015149000000
-        有线和卫星电视: 1000015150000000
-        广播: 1000015151000000
-        电影与娱乐: 1000015152000000
-        出版: 1000015153000000
+        广告:
+          id: "1000015149000000"
+          name_en: Advertising
+          description_en: Companies providing advertising and marketing services.
+        有线和卫星电视:
+          id: "1000015150000000"
+          name_en: Cable & Satellite TV
+          description_en: Companies offering cable and satellite television services.
+        广播:
+          id: "1000015151000000"
+          name_en: Broadcasting
+          description_en: Companies engaged in radio broadcasting services.
+        电影与娱乐:
+          id: "1000015152000000"
+          name_en: Movies & Entertainment
+          description_en: Companies producing films and entertainment content.
+        出版:
+          id: "1000015153000000"
+          name_en: Publishing
+          description_en: Companies engaged in publishing books, magazines, and media.
     零售业:
       消费品经销商Ⅲ:
-        消费品经销商: 1000015154000000
+        消费品经销商:
+          id: "1000015154000000"
+          name_en: Consumer Goods Distributors
+          description_en: Companies distributing consumer products to retailers and wholesalers.
       互联网与售货目录零售:
-        售货目录零售: 1000015155000000
-        互联网零售: 1000015156000000
+        售货目录零售:
+          id: "1000015155000000"
+          name_en: Catalog Retail
+          description_en: Companies selling products via catalogs.
+        互联网零售:
+          id: "1000015156000000"
+          name_en: Internet Retail
+          description_en: Companies selling products online.
       多元零售:
-        百货商店: 1000015157000000
-        综合货品商店: 1000015158000000
+        百货商店:
+          id: "1000015157000000"
+          name_en: Department Stores
+          description_en: Companies operating department store chains.
+        综合货品商店:
+          id: "1000015158000000"
+          name_en: General Merchandise Stores
+          description_en: Companies operating stores with a wide variety of goods.
       专营零售:
-        服装零售: 1000015159000000
-        电脑与电子产品零售: 1000015160000000
-        家庭装潢零售: 1000015161000000
-        专卖店: 1000015162000000
-        汽车零售: 1000015163000000
-        家庭装饰零售: 1000015164000000
+        服装零售:
+          id: "1000015159000000"
+          name_en: Apparel Retail
+          description_en: Companies selling clothing and related items.
+        电脑与电子产品零售:
+          id: "1000015160000000"
+          name_en: Computer & Electronics Retail
+          description_en: Companies selling computers and electronic products.
+        家庭装潢零售:
+          id: "1000015161000000"
+          name_en: Home Improvement Retail
+          description_en: Companies selling home improvement products.
+        专卖店:
+          id: "1000015162000000"
+          name_en: Specialty Stores
+          description_en: Companies selling specialized product lines.
+        汽车零售:
+          id: "1000015163000000"
+          name_en: Auto Retail
+          description_en: Companies selling vehicles to consumers.
+        家庭装饰零售:
+          id: "1000015164000000"
+          name_en: Home Décor Retail
+          description_en: Companies selling home decoration products.
   日常消费品:
     食品与主要用品零售II:
       食品与主要用品零售Ⅲ:
-        药品零售: 1000015165000000
-        食品分销商: 1000015166000000
-        食品零售: 1000015167000000
-        大卖场与超市: 1000015168000000
+        药品零售:
+          id: "1000015165000000"
+          name_en: Drug Retail
+          description_en: Companies operating retail outlets for pharmaceutical products.
+        食品分销商:
+          id: "1000015166000000"
+          name_en: Food Distributors
+          description_en: Companies distributing food products to retailers and wholesalers.
+        食品零售:
+          id: "1000015167000000"
+          name_en: Food Retail
+          description_en: Companies selling food products directly to consumers.
+        大卖场与超市:
+          id: "1000015168000000"
+          name_en: Supermarkets & Hypermarkets
+          description_en: Companies operating large-scale retail stores and supermarkets.
     食品、饮料与烟草:
       饮料:
-        啤酒: 1000015169000000
-        白酒与葡萄酒: 1000015170000000
-        软饮料: 1000015171000000
+        啤酒:
+          id: "1000015169000000"
+          name_en: Beer
+          description_en: Companies producing and selling beer products.
+        白酒与葡萄酒:
+          id: "1000015170000000"
+          name_en: Spirits & Wine
+          description_en: Companies producing and selling spirits and wine.
+        软饮料:
+          id: "1000015171000000"
+          name_en: Soft Drinks
+          description_en: Companies producing non-alcoholic beverages.
       食品:
-        农产品: 1000015172000000
-        食品加工与肉类: 1000015173000000
+        农产品:
+          id: "1000015172000000"
+          name_en: Agricultural Products
+          description_en: Companies producing and distributing raw agricultural commodities.
+        食品加工与肉类:
+          id: "1000015173000000"
+          name_en: Food Processing & Meat
+          description_en: Companies processing food and meat products.
       烟草Ⅲ:
-        烟草: 1000015174000000
+        烟草:
+          id: "1000015174000000"
+          name_en: Tobacco
+          description_en: Companies producing and selling tobacco products.
     家庭与个人用品:
       家庭用品Ⅲ:
-        家庭用品: 1000015175000000
+        家庭用品:
+          id: "1000015175000000"
+          name_en: Household Products
+          description_en: Companies producing household goods for everyday use.
       个人用品Ⅲ:
-        个人用品: 1000015176000000
+        个人用品:
+          id: "1000015176000000"
+          name_en: Personal Products
+          description_en: Companies producing personal care products and toiletries.
   医疗保健:
     医疗保健设备与服务:
       医疗保健设备与用品:
-        医疗保健设备: 1000015177000000
-        医疗保健用品: 1000015178000000
+        医疗保健设备:
+          id: "1000015177000000"
+          name_en: Healthcare Equipment
+          description_en: Companies manufacturing medical devices and equipment.
+        医疗保健用品:
+          id: "1000015178000000"
+          name_en: Healthcare Supplies
+          description_en: Companies providing medical consumables and supplies.
       医疗保健提供商与服务:
-        保健护理产品经销商: 1000015179000000
-        保健护理服务: 1000015180000000
-        保健护理设施: 1000015181000000
-        管理型保健护理: 1000015182000000
+        保健护理产品经销商:
+          id: "1000015179000000"
+          name_en: Healthcare Product Distributors
+          description_en: Companies distributing healthcare products.
+        保健护理服务:
+          id: "1000015180000000"
+          name_en: Healthcare Services
+          description_en: Companies providing healthcare and clinical services.
+        保健护理设施:
+          id: "1000015181000000"
+          name_en: Healthcare Facilities
+          description_en: Hospitals, clinics, and healthcare facilities operators.
+        管理型保健护理:
+          id: "1000015182000000"
+          name_en: Managed Healthcare
+          description_en: Companies offering managed healthcare programs and services.
       医疗保健技术Ⅲ:
-        医疗保健技术: 1000015183000000
+        医疗保健技术:
+          id: "1000015183000000"
+          name_en: Healthcare Technology
+          description_en: Companies developing healthcare software and technology solutions.
     制药、生物科技和生命科学:
       生物科技Ⅲ:
-        生物科技: 1000015184000000
+        生物科技:
+          id: "1000015184000000"
+          name_en: Biotechnology
+          description_en: Companies engaged in biotechnology research and development.
       制药:
-        西药: 1000015185000000
-        中药: 1000015186000000
+        西药:
+          id: "1000015185000000"
+          name_en: Pharmaceuticals
+          description_en: Companies producing western medicine drugs.
+        中药:
+          id: "1000015186000000"
+          name_en: Traditional Chinese Medicine
+          description_en: Companies producing traditional Chinese medicine products.
       生命科学工具和服务Ⅲ:
-        生命科学工具和服务: 1000015187000000
+        生命科学工具和服务:
+          id: "1000015187000000"
+          name_en: Life Sciences Tools & Services
+          description_en: Companies providing scientific instruments and life sciences services.
   金融:
     银行:
       商业银行:
-        多元化银行: 1000015188000000
-        区域性银行: 1000015189000000
+        多元化银行:
+          id: "1000015188000000"
+          name_en: Diversified Banks
+          description_en: Banks offering a wide range of banking services.
+        区域性银行:
+          id: "1000015189000000"
+          name_en: Regional Banks
+          description_en: Banks serving specific regions or states.
       互助储蓄银行与抵押信贷Ⅲ:
-        互助储蓄银行与抵押信贷: 1000015190000000
+        互助储蓄银行与抵押信贷:
+          id: "1000015190000000"
+          name_en: Mutual Savings Banks & Mortgage Lenders
+          description_en: Financial institutions offering savings and mortgage services.
     多元金融:
       多元金融服务:
-        其它多元金融服务: 1000015191000000
-        多领域控股: 1000015192000000
-        特殊金融服务: 1000015193000000
+        其它多元金融服务:
+          id: "1000015191000000"
+          name_en: Other Diversified Financial Services
+          description_en: Companies providing various financial services.
+        多领域控股:
+          id: "1000015192000000"
+          name_en: Multi-Sector Holdings
+          description_en: Companies holding investments across multiple sectors.
+        特殊金融服务:
+          id: "1000015193000000"
+          name_en: Specialized Financial Services
+          description_en: Companies offering niche financial products and services.
       消费信贷Ⅲ:
-        消费信贷: 1000015194000000
+        消费信贷:
+          id: "1000015194000000"
+          name_en: Consumer Finance
+          description_en: Companies providing personal loans and credit products.
       资本市场:
-        资产管理与托管银行: 1000015195000000
-        投资银行业与经纪业: 1000015196000000
-        多元洛本市场: 1000015197000000
+        资产管理与托管银行:
+          id: "1000015195000000"
+          name_en: Asset Management & Custody Banks
+          description_en: Companies managing investments and providing custody services.
+        投资银行业与经纪业:
+          id: "1000015196000000"
+          name_en: Investment Banking & Brokerage
+          description_en: Companies providing investment banking and brokerage services.
+        多元资本市场:
+          id: "1000015197000000"
+          name_en: Diversified Capital Markets
+          description_en: Companies operating across multiple capital market segments.
     保险Ⅱ:
       保险Ⅲ:
-        保险经纪商: 1000015198000000
-        人寿与健康保险: 1000015199000000
-        多元化保险: 1000015200000000
-        财产与意外伤害保险: 1000015201000000
-        再保险: 1000015202000000
+        保险经纪商:
+          id: "1000015198000000"
+          name_en: Insurance Brokers
+          description_en: Companies providing insurance brokerage services.
+        人寿与健康保险:
+          id: "1000015199000000"
+          name_en: Life & Health Insurance
+          description_en: Companies providing life and health insurance products.
+        多元化保险:
+          id: "1000015200000000"
+          name_en: Diversified Insurance
+          description_en: Companies providing multiple types of insurance.
+        财产与意外伤害保险:
+          id: "1000015201000000"
+          name_en: Property & Casualty Insurance
+          description_en: Companies providing property and casualty insurance.
+        再保险:
+          id: "1000015202000000"
+          name_en: Reinsurance
+          description_en: Companies offering reinsurance products.
   信息技术:
     软件与服务:
       互联网软件与服务Ⅲ:
-        互联网软件与服务: 1000015207000000
+        互联网软件与服务:
+          id: "1000015207000000"
+          name_en: Internet Software & Services
+          description_en: Companies providing software and services primarily via the internet.
       信息技术服务:
-        信息科技咨询与其它服务: 1000015208000000
-        数据处理与外包服务: 1000015209000000
+        信息科技咨询与其它服务:
+          id: "1000015208000000"
+          name_en: IT Consulting & Other Services
+          description_en: Companies offering IT consulting and related services.
+        数据处理与外包服务:
+          id: "1000015209000000"
+          name_en: Data Processing & Outsourced Services
+          description_en: Companies providing data processing and business outsourcing services.
       软件:
-        应用软件: 1000015210000000
-        系统软件: 1000015211000000
-        家庭娱乐软件: 1000015212000000
+        应用软件:
+          id: "1000015210000000"
+          name_en: Application Software
+          description_en: Companies developing software applications for end users.
+        系统软件:
+          id: "1000015211000000"
+          name_en: System Software
+          description_en: Companies developing operating systems and system-level software.
+        家庭娱乐软件:
+          id: "1000015212000000"
+          name_en: Home Entertainment Software
+          description_en: Companies producing software for home entertainment purposes.
     技术硬件与设备:
       通信设备Ⅲ:
-        通信设备: 1000015213000000
+        通信设备:
+          id: "1000015213000000"
+          name_en: Communication Equipment
+          description_en: Companies manufacturing equipment for telecommunications networks.
       电脑与外围设备:
-        电脑硬件: 1000015214000000
-        电脑存储与外围设备: 1000015215000000
+        电脑硬件:
+          id: "1000015214000000"
+          name_en: Computer Hardware
+          description_en: Companies producing computer hardware components.
+        电脑存储与外围设备:
+          id: "1000015215000000"
+          name_en: Computer Storage & Peripherals
+          description_en: Companies providing storage devices and peripheral equipment.
       电子设备、仪器和元件:
-        电子元件: 1000015216000000
-        电子设备和仪器: 1000015217000000
-        电子制造服务: 1000015218000000
-        技术产品经销商: 1000015219000000
+        电子元件:
+          id: "1000015216000000"
+          name_en: Electronic Components
+          description_en: Companies manufacturing electronic components.
+        电子设备和仪器:
+          id: "1000015217000000"
+          name_en: Electronic Equipment & Instruments
+          description_en: Companies producing electronic devices and measurement instruments.
+        电子制造服务:
+          id: "1000015218000000"
+          name_en: Electronic Manufacturing Services
+          description_en: Companies offering manufacturing services for electronic products.
+        技术产品经销商:
+          id: "1000015219000000"
+          name_en: Technology Distributors
+          description_en: Companies distributing technology products and solutions.
       办公电子设备Ⅲ:
-        办公电子设备: 1000015220000000
+        办公电子设备:
+          id: "1000015220000000"
+          name_en: Office Electronics
+          description_en: Companies producing electronic devices for office use.
     半导体与半导体生产设备:
       半导体产品与半导体设备:
-        半导体设备: 1000015221000000
-        半导体产品: 1000015222000000
+        半导体设备:
+          id: "1000015221000000"
+          name_en: Semiconductor Equipment
+          description_en: Companies manufacturing equipment for semiconductor production.
+        半导体产品:
+          id: "1000015222000000"
+          name_en: Semiconductor Products
+          description_en: Companies producing semiconductor components and products.
   电信业务:
     电信业务II:
       多元电信业务:
-        非传统电信运营商: 1000015223000000
-        综合电信业务: 1000015224000000
+        非传统电信运营商:
+          id: "1000015223000000"
+          name_en: Non-traditional Telecom Operators
+          description_en: Companies providing telecommunication services outside traditional networks.
+        综合电信业务:
+          id: "1000015224000000"
+          name_en: Integrated Telecom Services
+          description_en: Companies offering a combination of telecom services.
       无线电信业务Ⅲ:
-        无线电信业务: 1000015225000000
+        无线电信业务:
+          id: "1000015225000000"
+          name_en: Wireless Telecom Services
+          description_en: Companies providing wireless telecommunication services.
   公用事业:
     公用事业II:
       电力Ⅲ:
-        电力: 1000015226000000
+        电力:
+          id: "1000015226000000"
+          name_en: Electric Utilities
+          description_en: Companies generating, transmitting, and distributing electricity.
       燃气Ⅲ:
-        燃气: 1000015227000000
+        燃气:
+          id: "1000015227000000"
+          name_en: Gas Utilities
+          description_en: Companies providing natural gas distribution and related services.
       复合型公用事业Ⅲ:
-        复合型公用事业: 1000015228000000
+        复合型公用事业:
+          id: "1000015228000000"
+          name_en: Multi-Utility Companies
+          description_en: Companies operating in multiple utility sectors.
       水务Ⅲ:
-        水务: 1000015229000000
+        水务:
+          id: "1000015229000000"
+          name_en: Water Utilities
+          description_en: Companies providing water supply and wastewater services.
       独立电力生产商与能源贸易商Ⅲ:
-        独立电力生产商与能源贸易商: 1000015230000000
-        新能源发电业者: 1000015231000000
+        独立电力生产商与能源贸易商:
+          id: "1000015230000000"
+          name_en: Independent Power Producers & Energy Traders
+          description_en: Companies generating electricity independently and trading energy.
+        新能源发电业者:
+          id: "1000015231000000"
+          name_en: Renewable Energy Producers
+          description_en: Companies producing electricity from renewable energy sources.
   房地产:
     房地产II:
       房地产管理和开发:
-        房地产开发: 1000015203000000
-        房地产经营公司: 1000015204000000
-        多样化房地产活动: 1000015205000000
-        房地产服务: 1000015206000000
+        房地产开发:
+          id: "1000015203000000"
+          name_en: Real Estate Development
+          description_en: Companies engaged in real estate development activities.
+        房地产经营公司:
+          id: "1000015204000000"
+          name_en: Real Estate Operating Companies
+          description_en: Companies managing and operating real estate properties.
+        多样化房地产活动:
+          id: "1000015205000000"
+          name_en: Diversified Real Estate Activities
+          description_en: Companies involved in multiple real estate-related businesses.
+        房地产服务:
+          id: "1000015206000000"
+          name_en: Real Estate Services
+          description_en: Companies providing services related to real estate.
       股权房地产投资信托 (REITS):
-        多样化房地产投资信托: 1000023417000000
-        工业房地产投资信托: 1000023418000000
-        酒店及度假村房地产投资信托: 1000023420000000
-        办公房地产投资信托: 1000023421000000
-        医疗保健地产投资信托: 1000023422000000
-        住宅房地产投资信托: 1000023423000000
-        零售业房地产投资信托: 1000023424000000
-        特种房地产投资信托: 1000023425000000
+        多样化房地产投资信托:
+          id: "1000023417000000"
+          name_en: Diversified REITs
+          description_en: Real estate investment trusts with diversified portfolios.
+        工业房地产投资信托:
+          id: "1000023418000000"
+          name_en: Industrial REITs
+          description_en: REITs focusing on industrial properties.
+        酒店及度假村房地产投资信托:
+          id: "1000023420000000"
+          name_en: Hotel & Resort REITs
+          description_en: REITs investing in hotels and resorts.
+        办公房地产投资信托:
+          id: "1000023421000000"
+          name_en: Office REITs
+          description_en: REITs investing in office buildings.
+        医疗保健地产投资信托:
+          id: "1000023422000000"
+          name_en: Healthcare REITs
+          description_en: REITs investing in healthcare-related properties.
+        住宅房地产投资信托:
+          id: "1000023423000000"
+          name_en: Residential REITs
+          description_en: REITs investing in residential properties.
+        零售业房地产投资信托:
+          id: "1000023424000000"
+          name_en: Retail REITs
+          description_en: REITs investing in retail properties.
+        特种房地产投资信托:
+          id: "1000023425000000"
+          name_en: Specialty REITs
+          description_en: REITs investing in specialized property types.

@@ -291,7 +291,8 @@ Come on, finish the job! This is important to me. I'm counting on you!
 class RelatedNewsRecord:
     year: int
     month: int
-    sector_name: str
+    sector_name_en: str
+    sector_dec: str
     core_stock_tickers: List[str]
 
 
@@ -305,7 +306,8 @@ Your task is: For a given industry sector, within a specified year and month, us
 # Input Information
 - **Year**: {record.year}
 - **Month**: {record.month}
-- **Sector Name**: {record.sector_name}
+- **Sector Name**: {record.sector_name_en}
+- **Sector Description**: {record.sector_dec}
 - **Core Stock Tickers**: {record.core_stock_tickers}
 
 # Output Requirements
@@ -337,7 +339,7 @@ Your task is: For a given industry sector, within a specified year and month, us
 
 ---
 
-**Please begin the task and answer in English.**
+**Please begin the task**
     """
 
 

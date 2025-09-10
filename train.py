@@ -168,8 +168,8 @@ def run_experiment(model_cls, pretrain_blocks, finetune_blocks, exclude_stocks=N
 if __name__ == "__main__":
     run_experiment(
         model_cls=MambaModel,
-        pretrain_blocks=[Block.get("纳斯达克计算机指数")],
-        finetune_blocks=[Block.get("US_芯片")],
+        pretrain_blocks=[Block.get("纳斯达克计算机指数").id],
+        finetune_blocks=[Block.get("US_芯片").id],
         exclude_stocks=["AMD.O"],
         mode="both"  # 可选: "pretrain", "finetune", "both"
     )

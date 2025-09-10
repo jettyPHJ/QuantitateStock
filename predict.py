@@ -133,6 +133,6 @@ if __name__ == "__main__":
     run_prediction(
         model_cls=MambaModel,
         stock_code="AMD.O",
-        block_code=Block.get("纳斯达克计算机指数"),
+        block_code=Block.get("纳斯达克计算机指数").id,
         use_finetune_weights=True  # 切换微调 or 预训练模型
     )
