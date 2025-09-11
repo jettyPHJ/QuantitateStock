@@ -3,7 +3,7 @@ import yaml
 import json
 import time
 from abc import ABC, abstractmethod
-from typing import Optional, Dict, Any
+from typing import Dict, Any, Callable, Literal, Optional
 import utils.prompt as pt
 from google import genai
 from google.genai import types
@@ -87,7 +87,7 @@ class AssistantAnalyzer:
         config = types.GenerateContentConfig(
             temperature=0.1,
             max_output_tokens=2048,
-            thinking_config=types.ThinkingConfig(thinking_budget=1024),
+            thinking_config=types.ThinkingConfig(thinking_budget=2048),
             response_mime_type="application/json",
             response_schema=response_schema,
         )
@@ -151,49 +151,47 @@ class ModelAnalyzer(ABC):
     def request_news_quantization(self, prompt: str) -> str:
         pass
 
-    # -------------------- 公共逻辑 --------------------------
+    # ---------------------- 公共逻辑 ---------------------
 
     def get_model_name(self) -> str:
         return self.MODEL_NAME
 
+    # --- 通用请求 ---
+    def _request(self, prompt: str, request_func: Callable[[str], str]) -> str:
+        try:
+            return request_func(prompt)
+        except Exception as e:
+            fname = getattr(request_func, "__name__", str(request_func))
+            raise ValueError(f"[WARN] {fname} 调用失败: {e}") from e
+
+    # --- 获取模型回复文本 ---
     def get_important_news(self, stock_code: str, record: pt.AttributionRecord) -> str:
         prompt = pt.important_news_prompt(stock_code, record)
-        try:
-            response_text = self.request_important_news(prompt)
-        except Exception as e:
-            raise ValueError(f"[WARN] request_important_news 调用失败: {e}")
-        try:
-            response = Assistant.format_important_news(response_text)
-        except Exception as e:
-            raise ValueError(f"[WARN] format_important_news 调用失败: {e}")
-
-        return response
+        return self._request(prompt, self.request_important_news)
 
     def get_related_news(self, record: pt.RelatedNewsRecord) -> str:
         prompt = pt.related_news_prompt(record)
-        try:
-            response_text = self.request_related_news(prompt)
-        except Exception as e:
-            raise ValueError(f"[WARN] request_related_news 调用失败: {e}")
-        try:
-            response = Assistant.format_related_news(response_text)
-        except Exception as e:
-            raise ValueError(f"[WARN] format_related_news 调用失败: {e}")
-
-        return response
+        return self._request(prompt, self.request_related_news)
 
     def get_news_quantization(self, stock_code: str, news_title: str, date: str) -> str:
         if not news_title:
             raise ValueError("新闻标题为空，无法解析。")
         prompt = pt.quantization_prompt(stock_code, news_title, date)
-        try:
-            response_text = self.request_news_quantization(prompt)
-            print(response_text)
-        except Exception as e:
-            raise ValueError(f"[WARN] request_news_quantization 调用失败: {e}")
-        try:
-            response = Assistant.format_quantization(response_text)
-        except Exception as e:
-            raise ValueError(f"[WARN] format_quantization 调用失败: {e}")
+        return self._request(prompt, self.request_news_quantization)
 
-        return response
+    # --- 模型回复文本格式化函数 ---
+    def format_response(self, response_text: str, kind: Literal["important", "related", "quantization"]) -> str:
+        """
+        统一格式化函数
+        """
+        format_map: Dict[str, Callable[[str], str]] = {
+            "important": Assistant.format_important_news,
+            "related": Assistant.format_related_news,
+            "quantization": Assistant.format_quantization,
+        }
+
+        try:
+            return format_map[kind](response_text)
+        except Exception as e:
+            fname = getattr(format_map[kind], "__name__", str(format_map[kind]))
+            raise ValueError(f"[WARN] {fname} 调用失败: {e}") from e

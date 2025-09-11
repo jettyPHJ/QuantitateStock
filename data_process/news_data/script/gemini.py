@@ -68,7 +68,7 @@ class GeminiAnalyzer(ModelAnalyzer):
             temperature=0.1,
             max_output_tokens=2048,
             tools=[grounding_tool],
-            thinking_config=types.ThinkingConfig(thinking_budget=4096),
+            thinking_config=types.ThinkingConfig(thinking_budget=6144),
         )
         response = self.client.models.generate_content(
             model="gemini-2.5-pro",
@@ -106,11 +106,14 @@ if __name__ == "__main__":
     # -----生成新闻量化结果-----
     important_news = "Wall Street analysts and Nvidia's CEO, Jensen Huang, were dismissing the threat posed by the Chinese AI startup DeepSeek."
     date = "2025-01-28"
-
-    response = analyzer.get_news_quantization("NVDA.O", important_news, date)
-    print("Gemini 新闻量化结果：", response)
+    response_text = analyzer.get_news_quantization("NVDA.O", important_news, date)
+    print("Gemini 重要新闻分析结果：", response_text)
+    format_response = analyzer.format_response(response_text, "quantization")
+    print("Gemini 重要新闻量化结果：", format_response)
 
     # related_news = "TSMC Reports Strong January Revenue, Up 35.9% Year-over-Year, Despite Earthquake Impacting Q1 Outlook."
     # date = "2025-01-10"
-
-    # analyzer.get_news_quantization("NVDA.O", related_news, date)
+    # response_text = analyzer.get_news_quantization("NVDA.O", related_news, date)
+    # print("Gemini 相关新闻分析结果：", response_text)
+    # format_response = analyzer.format_response(response_text, "quantization")
+    # print("Gemini 相关新闻量化结果：", format_response)

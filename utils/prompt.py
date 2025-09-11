@@ -41,14 +41,14 @@ class RelatedNews(BaseModel):
 
 @dataclass
 class QuantitativeScores:
-    causal_impact_score: float
-    uncertainty_score: float
-    alpha_score: float
-    power_shift_score: float
-    sentiment_score: float
-    time_horizon_fundamental: float
-    time_horizon_sentiment: float
-    conviction_score: float
+    causal_impact_score: float | None
+    certainty_score: float | None
+    alpha_score: float | None
+    power_shift_score: float | None
+    sentiment_score: float | None
+    time_horizon_fundamental: float | None
+    time_horizon_sentiment: float | None
+    conviction_score: float | None
 
 
 @dataclass
@@ -412,8 +412,8 @@ Execute the following 5-phase workflow, operating as an analyst on the `Analysis
     - **Anchors:** +2 = Significant Positive Impact; +1 = Mildly Positive; 0 = Neutral; -1 = Mildly Negative; -2 = Significant Negative Impact.  
     - **Rationale:** [Justify based on the event's fundamental impact on long-term value]  
 
-  - **Uncertainty Score** → [1, 2, 3, 4, 5]  
-    - **Anchors:** 1 = Clear Outcome; 3 = Moderate Uncertainty; 5 = High Uncertainty / Wide Range of Outcomes.  
+  - **Certainty Score** → [1, 2, 3, 4, 5]  
+    - **Anchors:** 1 = High Uncertainty / Wide Range of Outcomes; 3 = Moderate Certainty; 5 = High Certainty / Clear Outcome.  
     - **Rationale:** [Justify based on the predictability of the event's consequences]  
 
   - **Alpha Score** → [1, 2, 3, 4, 5]  
