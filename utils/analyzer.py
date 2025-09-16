@@ -3,7 +3,8 @@ import yaml
 import json
 import time
 from abc import ABC, abstractmethod
-from typing import Dict, Any, Callable, Literal, Optional
+from enum import Enum
+from typing import Dict, Any, Callable
 import utils.prompt as pt
 from google import genai
 from google.genai import types
@@ -117,7 +118,31 @@ class AssistantAnalyzer:
 Assistant = AssistantAnalyzer()
 
 
-class ModelAnalyzer(ABC):
+class ResKind(Enum):
+    IMP = "important-news"
+    REL = "related-news"
+    QUANT = "quantization-news"
+
+
+# --- 模型回复文本格式化函数 ---
+def format_response(response_text: str, kind: ResKind) -> str:
+    """
+    统一格式化函数
+    """
+    format_map: Dict[ResKind, Callable[[str], str]] = {
+        ResKind.IMP: Assistant.format_important_news,
+        ResKind.REL: Assistant.format_related_news,
+        ResKind.QUANT: Assistant.format_quantization,
+    }
+
+    try:
+        return format_map[kind](response_text)
+    except Exception as e:
+        fname = getattr(format_map[kind], "__name__", str(format_map[kind]))
+        raise ValueError(f"[WARN] {fname} 调用失败: {e}") from e
+
+
+class NewsAnalyzer(ABC):
     """通用的模型分析器抽象基类"""
 
     MODEL_NAME: str = None  # 子类必须指定
@@ -179,19 +204,20 @@ class ModelAnalyzer(ABC):
         prompt = pt.quantization_prompt(stock_code, news_title, date)
         return self._request(prompt, self.request_news_quantization)
 
-    # --- 模型回复文本格式化函数 ---
-    def format_response(self, response_text: str, kind: Literal["important", "related", "quantization"]) -> str:
-        """
-        统一格式化函数
-        """
-        format_map: Dict[str, Callable[[str], str]] = {
-            "important": Assistant.format_important_news,
-            "related": Assistant.format_related_news,
-            "quantization": Assistant.format_quantization,
-        }
 
-        try:
-            return format_map[kind](response_text)
-        except Exception as e:
-            fname = getattr(format_map[kind], "__name__", str(format_map[kind]))
-            raise ValueError(f"[WARN] {fname} 调用失败: {e}") from e
+class CompanyAnalyzer(ABC):
+    """通用的模型分析器抽象基类"""
+
+    MODEL_NAME: str = None  # 子类必须指定
+
+    def __init__(self):
+        if not self.MODEL_NAME:
+            raise ValueError("子类必须指定 MODEL_NAME")
+
+        api_key = key_map.get(self.MODEL_NAME)
+        if not api_key:
+            raise ValueError(f"未在 {feature_map_path} 中找到 {self.MODEL_NAME} 对应的 api key")
+
+        self.api_key = api_key
+
+    # ----------------- 子类必须实现的方法 ------------------

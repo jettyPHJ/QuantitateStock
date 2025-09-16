@@ -355,7 +355,7 @@ def quantization_prompt(stock_code: str, news_title: str, date: str) -> str:
         f"""
 ### MISSION BRIEF
 - **Stock:** {stock_code}
-- **Event / Topic:** {news_title}
+- **Event:** {news_title}
 - **Analysis_Date:** {date}  **(This is the anchor date for all your knowledge and analysis)**
 
 ---

@@ -1,13 +1,9 @@
 from google import genai
 from google.genai import types
-from data_process.finance_data.script.wind import get_price_change_records, get_stock_codes
-from utils.prompt import get_analyse_records
-from utils.prompt import Evaluation, RelatedNewsRecord
-from utils.analyzer import ModelAnalyzer, retry
-from utils.block import Block
+from utils.analyzer import NewsAnalyzer, retry, format_response, ResKind
 
 
-class GeminiAnalyzer(ModelAnalyzer):
+class GeminiAnalyzer(NewsAnalyzer):
     """基于 Google Gemini 的财经新闻分析器"""
 
     MODEL_NAME: str = "Gemini"
@@ -108,12 +104,12 @@ if __name__ == "__main__":
     date = "2025-01-28"
     response_text = analyzer.get_news_quantization("NVDA.O", important_news, date)
     print("Gemini 重要新闻分析结果：", response_text)
-    format_response = analyzer.format_response(response_text, "quantization")
-    print("Gemini 重要新闻量化结果：", format_response)
+    format_res = format_response(response_text, ResKind.QUANT)
+    print("Gemini 重要新闻量化结果：", format_res)
 
     # related_news = "TSMC Reports Strong January Revenue, Up 35.9% Year-over-Year, Despite Earthquake Impacting Q1 Outlook."
     # date = "2025-01-10"
     # response_text = analyzer.get_news_quantization("NVDA.O", related_news, date)
     # print("Gemini 相关新闻分析结果：", response_text)
-    # format_response = analyzer.format_response(response_text, "quantization")
-    # print("Gemini 相关新闻量化结果：", format_response)
+    # format_res = format_response(response_text, ResKind.QUANT)
+    # print("Gemini 相关新闻量化结果：", format_res)

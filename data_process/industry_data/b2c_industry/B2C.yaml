@@ -1,0 +1,293 @@
+# 直面消费者的行业，作为其它行业未来市场规模预期的基础单元
+SP500_WIND_B2C_末端行业:
+  运输:
+    运输:
+      航空Ⅲ:
+        航空:
+          id: "1000015122000000"
+          name_en: Airlines
+          description_en: Companies providing passenger and cargo air transportation.
+  可选消费:
+    汽车与汽车零部件:
+      汽车:
+        汽车制造:
+          id: "1000015131000000"
+          name_en: Automobile Manufacturing
+          description_en: Companies producing passenger and commercial vehicles.
+        摩托车制造:
+          id: "1000015132000000"
+          name_en: Motorcycle Manufacturing
+          description_en: Companies producing motorcycles and related vehicles.
+    耐用消费品与服装:
+      家庭耐用消费品:
+        消费电子产品:
+          id: "1000015133000000"
+          name_en: Consumer Electronics
+          description_en: Companies manufacturing electronic devices for consumers.
+        家庭装饰品:
+          id: "1000015134000000"
+          name_en: Home Furnishings
+          description_en: Companies producing home décor and furniture products.
+        住宅建筑:
+          id: "1000015135000000"
+          name_en: Residential Construction
+          description_en: Companies engaged in building residential properties.
+        家用电器:
+          id: "1000015136000000"
+          name_en: Home Appliances
+          description_en: Companies manufacturing appliances for household use.
+        家用器具与特殊消费品:
+          id: "1000015137000000"
+          name_en: Household Durables & Special Consumer Products
+          description_en: Companies producing durable household goods and specialty consumer items.
+      休闲设备与用品:
+        休闲用品:
+          id: "1000015138000000"
+          name_en: Leisure Products
+          description_en: Companies producing recreational products and equipment.
+        摄影用品:
+          id: "1000015139000000"
+          name_en: Photographic Equipment
+          description_en: Companies manufacturing cameras, lenses, and related accessories.
+      纺织品、服装与奢侈品:
+        服装、服饰与奢侈品:
+          id: "1000015140000000"
+          name_en: Apparel, Accessories & Luxury Goods
+          description_en: Companies producing clothing, fashion accessories, and luxury items.
+        鞋类:
+          id: "1000015141000000"
+          name_en: Footwear
+          description_en: Companies manufacturing shoes and related products.
+    消费者服务Ⅱ:
+      酒店、餐馆与休闲Ⅲ:
+        赌场与赌博:
+          id: "1000015143000000"
+          name_en: Casinos & Gambling
+          description_en: Companies operating casinos and gambling services.
+        酒店、度假村与豪华游轮:
+          id: "1000015144000000"
+          name_en: Hotels, Resorts & Luxury Cruises
+          description_en: Companies managing hotels, resorts, and cruise services.
+        休闲设施:
+          id: "1000015145000000"
+          name_en: Leisure Facilities
+          description_en: Companies providing recreational and entertainment facilities.
+        餐馆:
+          id: "1000015146000000"
+          name_en: Restaurants
+          description_en: Companies operating restaurants and dining services.
+      综合消费者服务Ⅲ:
+        教育服务:
+          id: "1000015147000000"
+          name_en: Education Services
+          description_en: Companies providing educational and training services.
+        特殊消费者服务:
+          id: "1000015148000000"
+          name_en: Specialty Consumer Services
+          description_en: Companies offering specialized consumer-oriented services.
+    媒体:
+      媒体Ⅲ:
+        有线和卫星电视:
+          id: "1000015150000000"
+          name_en: Cable & Satellite TV
+          description_en: Companies offering cable and satellite television services.
+        广播:
+          id: "1000015151000000"
+          name_en: Broadcasting
+          description_en: Companies engaged in radio broadcasting services.
+        电影与娱乐:
+          id: "1000015152000000"
+          name_en: Movies & Entertainment
+          description_en: Companies producing films and entertainment content.
+        出版:
+          id: "1000015153000000"
+          name_en: Publishing
+          description_en: Companies engaged in publishing books, magazines, and media.
+    零售业:
+      互联网与售货目录零售:
+        互联网零售:
+          id: "1000015156000000"
+          name_en: Internet Retail
+          description_en: Companies selling products online.
+      多元零售:
+        百货商店:
+          id: "1000015157000000"
+          name_en: Department Stores
+          description_en: Companies operating department store chains.
+        综合货品商店:
+          id: "1000015158000000"
+          name_en: General Merchandise Stores
+          description_en: Companies operating stores with a wide variety of goods.
+      专营零售:
+        服装零售:
+          id: "1000015159000000"
+          name_en: Apparel Retail
+          description_en: Companies selling clothing and related items.
+        电脑与电子产品零售:
+          id: "1000015160000000"
+          name_en: Computer & Electronics Retail
+          description_en: Companies selling computers and electronic products.
+        家庭装潢零售:
+          id: "1000015161000000"
+          name_en: Home Improvement Retail
+          description_en: Companies selling home improvement products.
+        专卖店:
+          id: "1000015162000000"
+          name_en: Specialty Stores
+          description_en: Companies selling specialized product lines.
+        汽车零售:
+          id: "1000015163000000"
+          name_en: Auto Retail
+          description_en: Companies selling vehicles to consumers.
+        家庭装饰零售:
+          id: "1000015164000000"
+          name_en: Home Décor Retail
+          description_en: Companies selling home decoration products.
+  日常消费品:
+    食品与主要用品零售II:
+      食品与主要用品零售Ⅲ:
+        药品零售:
+          id: "1000015165000000"
+          name_en: Drug Retail
+          description_en: Companies operating retail outlets for pharmaceutical products.
+        食品零售:
+          id: "1000015167000000"
+          name_en: Food Retail
+          description_en: Companies selling food products directly to consumers.
+        大卖场与超市:
+          id: "1000015168000000"
+          name_en: Supermarkets & Hypermarkets
+          description_en: Companies operating large-scale retail stores and supermarkets.
+    食品、饮料与烟草:
+      饮料:
+        啤酒:
+          id: "1000015169000000"
+          name_en: Beer
+          description_en: Companies producing and selling beer products.
+        白酒与葡萄酒:
+          id: "1000015170000000"
+          name_en: Spirits & Wine
+          description_en: Companies producing and selling spirits and wine.
+        软饮料:
+          id: "1000015171000000"
+          name_en: Soft Drinks
+          description_en: Companies producing non-alcoholic beverages.
+      烟草Ⅲ:
+        烟草:
+          id: "1000015174000000"
+          name_en: Tobacco
+          description_en: Companies producing and selling tobacco products.
+    家庭与个人用品:
+      家庭用品Ⅲ:
+        家庭用品:
+          id: "1000015175000000"
+          name_en: Household Products
+          description_en: Companies producing household goods for everyday use.
+      个人用品Ⅲ:
+        个人用品:
+          id: "1000015176000000"
+          name_en: Personal Products
+          description_en: Companies producing personal care products and toiletries.
+  医疗保健:
+    医疗保健设备与服务:
+      医疗保健提供商与服务:
+        保健护理服务:
+          id: "1000015180000000"
+          name_en: Healthcare Services
+          description_en: Companies providing healthcare and clinical services.
+        保健护理设施:
+          id: "1000015181000000"
+          name_en: Healthcare Facilities
+          description_en: Hospitals, clinics, and healthcare facilities operators.
+        管理型保健护理:
+          id: "1000015182000000"
+          name_en: Managed Healthcare
+          description_en: Companies offering managed healthcare programs and services.
+    制药、生物科技和生命科学:
+      制药:
+        西药:
+          id: "1000015185000000"
+          name_en: Pharmaceuticals
+          description_en: Companies producing western medicine drugs.
+        中药:
+          id: "1000015186000000"
+          name_en: Traditional Chinese Medicine
+          description_en: Companies producing traditional Chinese medicine products.
+  金融:
+    银行:
+      商业银行:
+        多元化银行:
+          id: "1000015188000000"
+          name_en: Diversified Banks
+          description_en: Banks offering a wide range of banking services.
+        区域性银行:
+          id: "1000015189000000"
+          name_en: Regional Banks
+          description_en: Banks serving specific regions or states.
+    多元金融:
+      消费信贷Ⅲ:
+        消费信贷:
+          id: "1000015194000000"
+          name_en: Consumer Finance
+          description_en: Companies providing personal loans and credit products.
+    保险Ⅱ:
+      保险Ⅲ:
+        人寿与健康保险:
+          id: "1000015199000000"
+          name_en: Life & Health Insurance
+          description_en: Companies providing life and health insurance products.
+        财产与意外伤害保险:
+          id: "1000015201000000"
+          name_en: Property & Casualty Insurance
+          description_en: Companies providing property and casualty insurance.
+  信息技术:
+    软件与服务:
+      互联网软件与服务Ⅲ:
+        互联网软件与服务:
+          id: "1000015207000000"
+          name_en: Internet Software & Services
+          description_en: Companies providing software and services primarily via the internet.
+      软件:
+        家庭娱乐软件:
+          id: "1000015212000000"
+          name_en: Home Entertainment Software
+          description_en: Companies producing software for home entertainment purposes.
+  电信业务:
+    电信业务II:
+      无线电信业务Ⅲ:
+        无线电信业务:
+          id: "1000015225000000"
+          name_en: Wireless Telecom Services
+          description_en: Companies providing wireless telecommunication services.
+  公用事业:
+    公用事业II:
+      电力Ⅲ:
+        电力:
+          id: "1000015226000000"
+          name_en: Electric Utilities
+          description_en: Companies generating, transmitting, and distributing electricity.
+      燃气Ⅲ:
+        燃气:
+          id: "1000015227000000"
+          name_en: Gas Utilities
+          description_en: Companies providing natural gas distribution and related services.
+      水务Ⅲ:
+        水务:
+          id: "1000015229000000"
+          name_en: Water Utilities
+          description_en: Companies providing water supply and wastewater services.
+  房地产:
+    房地产II:
+      股权房地产投资信托 (REITS):
+        酒店及度假村房地产投资信托:
+          id: "1000023420000000"
+          name_en: Hotel & Resort REITs
+          description_en: REITs investing in hotels and resorts.
+        住宅房地产投资信托:
+          id: "1000023423000000"
+          name_en: Residential REITs
+          description_en: REITs investing in residential properties.
+        零售业房地产投资信托:
+          id: "1000023424000000"
+          name_en: Retail REITs
+          description_en: REITs investing in retail properties.

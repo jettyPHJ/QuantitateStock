@@ -8,6 +8,7 @@ from utils.block import Block
 import utils.prompt as pt
 from datetime import datetime
 import time
+from utils.analyzer import format_response, ResKind
 
 start_year = 2025
 
@@ -180,7 +181,13 @@ class ImportantNewsDBManager:
                     print(f"[ERROR] {self.stock_code}_{date_str} 获取新闻失败: {e}")
                     continue
 
-                self.save_news(record, news, model_name)
+                try:
+                    format_res = format_response(news, ResKind.IMP)
+                except Exception as e:
+                    print(f"[ERROR] {self.stock_code}_{date_str} 格式化新闻失败: {e}")
+                    continue
+
+                self.save_news(record, format_res, model_name)
                 time.sleep(2)  # 避免请求过于频繁
 
     def __del__(self):

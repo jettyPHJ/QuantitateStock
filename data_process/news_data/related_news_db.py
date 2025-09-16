@@ -8,6 +8,7 @@ from data_process.news_data.script.gemini import GeminiAnalyzer, get_stock_codes
 from utils.prompt import RelatedNewsRecord, related_news_prompt
 from utils.block import Block
 import utils.prompt as pt
+from utils.analyzer import format_response, ResKind
 
 start_year = 2025
 
@@ -139,7 +140,8 @@ class RelatedNewsDBManager:
                     record = RelatedNewsRecord(year, month, self.sector_name_en, self.sector_description,
                                                self.core_stock_tickers)
                     response_text = self.analyzer.get_related_news(record)
-                    self.save_related_news(year, month, response_text)
+                    format_res = format_response(response_text, ResKind.REL)
+                    self.save_related_news(year, month, format_res)
                     time.sleep(1)
 
                 except Exception as e:

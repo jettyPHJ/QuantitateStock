@@ -1,12 +1,10 @@
 from openai import OpenAI
-
 from data_process.finance_data.script.wind import get_price_change_records
 from utils.prompt import get_analyse_records
-from utils.prompt import Evaluation
-from utils.analyzer import ModelAnalyzer
+from utils.analyzer import NewsAnalyzer
 
 
-class ChatGPTAnalyzer(ModelAnalyzer):
+class ChatGPTAnalyzer(NewsAnalyzer):
     """基于 OpenAI ChatGPT 的财经新闻分析器"""
 
     MODEL_NAME: str = "ChatGPT"
