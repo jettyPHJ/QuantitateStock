@@ -1,9 +1,9 @@
 import os
 import sqlite3
-from data_process.news_data.script.gemini import GeminiAnalyzer
+from data_source.news.script.gemini import GeminiAnalyzer
 import re
 from utils.prompt import AttributionRecord
-from data_process.finance_data.script.wind import get_price_change_records, get_stock_codes
+from data_source.finance.script.wind import get_price_change_records, get_stock_codes
 from utils.block import Block
 import utils.prompt as pt
 from datetime import datetime

@@ -3,7 +3,7 @@ import pandas as pd
 import torch
 from torch.utils.data import Dataset
 from utils.feature import FEATURE_META, FeatureConfig, ScalingMethod, zscore_normalize, log_zscore_normalize, clip_normalize
-from data_process.finance_data.database import FinanceDBManager, Block
+from data_source.finance.database import FinanceDBManager, Block
 
 
 # --------------------- 基类 ---------------------

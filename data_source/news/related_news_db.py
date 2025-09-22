@@ -4,7 +4,8 @@ import re
 from datetime import datetime
 import time
 from typing import List
-from data_process.news_data.script.gemini import GeminiAnalyzer, get_stock_codes
+from data_source.news.script.gemini import GeminiAnalyzer
+from data_source.finance.script.wind import get_stock_codes
 from utils.prompt import RelatedNewsRecord, related_news_prompt
 from utils.block import Block
 import utils.prompt as pt

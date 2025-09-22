@@ -1,6 +1,6 @@
 import sqlite3
 import os
-import data_process.finance_data.script.wind as wd
+import data_source.finance.script.wind as wd
 from utils.block import Block, BlockItem
 
 

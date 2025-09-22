@@ -1,5 +1,5 @@
 from openai import OpenAI
-from data_process.finance_data.script.wind import get_price_change_records
+from data_source.finance.script.wind import get_price_change_records
 from utils.prompt import get_analyse_records
 from utils.analyzer import NewsAnalyzer
 

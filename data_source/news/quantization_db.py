@@ -1,7 +1,7 @@
 import os
 import sqlite3
 from typing import List, Dict
-from data_process.news_data.script.gemini import GeminiAnalyzer
+from data_source.news.script.gemini import GeminiAnalyzer
 import time
 from datetime import datetime, timedelta
 import math

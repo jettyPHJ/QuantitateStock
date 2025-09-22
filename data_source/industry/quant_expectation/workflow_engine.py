@@ -2,7 +2,7 @@ import json
 from datetime import datetime, timedelta
 from .expectation_db import ExpectationDBManager
 from .prompts import triage_prompts, industry_prompts, company_prompts, update_prompts
-from data_process.news_data.script.gemini import GeminiAnalyzer
+from data_source.news.script.gemini import GeminiAnalyzer
 from utils.block import Block
 
 # 配置：定义数据“陈旧”的阈值（天）
