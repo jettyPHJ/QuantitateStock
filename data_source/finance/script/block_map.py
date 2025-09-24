@@ -66,7 +66,11 @@ class BlockConstituentCache:
                 context=f"获取 {block_code} 板块股票")
 
             if wset_result.ErrorCode == 0 and len(wset_result.Data) > 0:
-                return ft.build_translated_data_map(wset_result.Fields, wset_result.Data)["wind_code"]
+                codes = ft.build_translated_data_map(wset_result.Fields, wset_result.Data)["wind_code"]
+                # 确保是列表
+                if isinstance(codes, str):
+                    codes = [codes]
+                return codes
             return []
         except Exception as e:
             print(f"[Error] 获取板块 {block_code} 股票列表失败: {e}")
@@ -135,7 +139,7 @@ if __name__ == "__main__":
 
     if target_block:
         # 返回 BlockCacheItem
-        block_item: BlockCacheItem = block_cache.get_stock_codes(target_block.id, block_name=target_block.name_cn)
+        block_item: BlockCacheItem = block_cache.get_stock_codes(target_block.id)
         print(f"板块名称: {block_item.name}")
         print(f"板块路径: {block_item.path}")
         print(f"股票总数: {len(block_item.codes)}")
@@ -158,5 +162,5 @@ if __name__ == "__main__":
     # block_cache.update_all_blocks(force_refresh=True)
 
     # ----------------- 测试 4: 父板块范围更新 -----------------
-    # print("\n----------- 测试: 更新 'SP500_WIND行业类' 下所有子板块 -----------")
-    # block_cache.update_blocks_by_parent("SP500_WIND行业类", force_refresh=True)
+    print("\n----------- 测试: 更新 'SP500_WIND行业类' 下所有子板块 -----------")
+    block_cache.update_blocks_by_parent("SP500_WIND行业类", force_refresh=True)
