@@ -3,7 +3,8 @@ import sqlite3
 from data_source.news.script.gemini import GeminiAnalyzer
 import re
 from utils.prompt import AttributionRecord
-from data_source.finance.script.wind import get_price_change_records, get_stock_codes
+from data_source.finance.script.wind import get_price_change_records
+from data_source.finance.script.block_map import block_cache
 from utils.block import Block
 import utils.prompt as pt
 from datetime import datetime
@@ -206,7 +207,7 @@ def create_important_news_db(parent_name: str):
     sub_items = Block.get_items_by_parent(parent_name)
     for _, item in sub_items.items():
         print(f"[INFO] 开始搜寻 {item.name_cn} 板块的股票新闻")
-        stock_codes = get_stock_codes(item.id)
+        stock_codes = block_cache.get_stock_codes(item.id).codes
         if len(stock_codes) == 0:
             print(f"[INFO] {item.name_cn} 板块没有股票")
             continue

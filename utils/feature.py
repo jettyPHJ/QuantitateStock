@@ -139,7 +139,7 @@ def stock_wind_opt(trade_days: int, end_day: int, start_day: int) -> str:
 
 
 def block_wind_opt(start_day: int, end_day: int, year: int) -> str:
-    return f"startDate={start_day};endDate={end_day};tradeDate={end_day};DynamicTime=1;excludeRule=2;year={year}"
+    return f"startDate={start_day};endDate={end_day};tradeDate={end_day};DynamicTime=0;excludeRule=2;year={year}"
 
 
 # ---------------------归一化函数-----------------------

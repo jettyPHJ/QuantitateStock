@@ -43,18 +43,12 @@ class Block:
 
     @classmethod
     def get_items_by_parent(cls, parent_name: str) -> Dict[str, BlockItem]:
-        """
-        通过父节点名称，获取其下所有层级的子项目。
-        该方法可以在任意层级进行查找。
-        """
         results = {}
-        # 构建父节点的路径前缀，用于精确匹配
-        # 例如，查找 '能源设备与服务' 的子节点，其路径中必然包含 ' > 能源设备与服务 > '
-        parent_path_prefix = f" > {parent_name} > "
-
         for item in cls._items.values():
-            # 在每个节点的完整路径中查找父节点的路径前缀
-            if parent_path_prefix in item.path:
+            # 路径拆分成 list
+            path_parts = item.path.split(" > ")
+            if parent_name in path_parts:
+                # 只要 parent 在路径里，就认为它是父节点
                 results[item.name_cn] = item
         return results
 

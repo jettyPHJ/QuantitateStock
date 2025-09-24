@@ -5,7 +5,7 @@ from datetime import datetime
 import time
 from typing import List
 from data_source.news.script.gemini import GeminiAnalyzer
-from data_source.finance.script.wind import get_stock_codes
+from data_source.finance.script.block_map import block_cache
 from utils.prompt import RelatedNewsRecord, related_news_prompt
 from utils.block import Block
 import utils.prompt as pt
@@ -59,7 +59,7 @@ class RelatedNewsDBManager:
         if item:
             self.sector_name_en = item.name_en
             self.sector_description = item.description_en
-            self.core_tickers = get_stock_codes(item.id)
+            self.core_tickers = block_cache.get_stock_codes(item.id).codes
         else:
             raise ValueError(f"板块 {self.sector_name_cn} 不存在")
 
@@ -171,7 +171,7 @@ def create_related_news_db(parent_name: str):
 
     for _, item in sub_items.items():
         print(f"\n===== [INFO] 开始处理板块: {item.name_cn} =====")
-        core_tickers = get_stock_codes(item.id)
+        core_tickers = block_cache.get_stock_codes(item.id).codes
         if not core_tickers:
             print(f"[WARN] 板块 {item.name_cn} 未找到核心股票，跳过")
             continue

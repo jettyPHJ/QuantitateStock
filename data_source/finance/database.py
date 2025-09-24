@@ -2,13 +2,14 @@ import sqlite3
 import os
 import data_source.finance.script.wind as wd
 from utils.block import Block, BlockItem
+from data_source.finance.script.block_map import block_cache
 
 
 class FinanceDBManager:
 
     def __init__(self, block: BlockItem, db_dir="db"):
         self.block = block
-        db_file = f"{self.block.name}.db"
+        db_file = f"{self.block.name_cn}.db"
         self.db_path = os.path.join(os.path.dirname(__file__), db_dir, db_file)
 
         os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
@@ -62,9 +63,9 @@ class FinanceDBManager:
                 f'''
                 INSERT INTO "{table_name}" ({fields}) VALUES ({placeholders})
                 ''', values)
-            print(f"[写入成功] {stock_code} ({self.block.name}) - {record.get('报告期')}")
+            print(f"[写入成功] {stock_code} ({self.block.name_cn}) - {record.get('报告期')}")
         except Exception as e:
-            print(f"[写入失败] {stock_code} ({self.block.name}) - {record.get('报告期')}，错误：{e}")
+            print(f"[写入失败] {stock_code} ({self.block.name_cn}) - {record.get('报告期')}，错误：{e}")
         self.conn.commit()
 
     # 抓取单股数据
@@ -80,7 +81,7 @@ class FinanceDBManager:
 
         if not exists:
             # 表不存在：调用 fetcher 抓取数据并存入数据库
-            fetcher = wd.WindFinancialDataFetcher(stock_code=stock_code, block_code=self.block.code)
+            fetcher = wd.WindFinancialDataFetcher(stock_code=stock_code, block_code=self.block.id)
             data_list = fetcher.get_data()
 
             if not data_list:
@@ -101,14 +102,14 @@ class FinanceDBManager:
         data = [dict(zip(col_names, row)) for row in rows]
         return data
 
-    # 抓取板块数据
+    # 抓取同一板块的股票数据
     def fetch_block_data(self, update=False):
         """
         获取整个板块下所有股票的财务数据，并以 {stock_code: [record_dict, ...]} 的形式返回。
         """
         result = {}
-        stock_codes = wd.get_stock_codes(self.block.code)
-        print(f"[Info] 开始处理板块（{self.block.name}）下共 {len(stock_codes)} 支股票")
+        stock_codes = block_cache.get_stock_codes(self.block.id).codes
+        print(f"[Info] 开始处理板块（{self.block.name_cn}）下共 {len(stock_codes)} 支股票")
 
         for stock_code in stock_codes:
             try:
@@ -144,6 +145,16 @@ class FinanceDBManager:
 
 # --------------------- 测试入口 ---------------------
 if __name__ == "__main__":
-    db = FinanceDBManager(block=Block.get("US_芯片"))
-    db.fetch_block_data()
-    # db.fetch_stock_data(stock_code="NVDA.O")
+    parent_block = "SP500_WIND行业类"
+    db_dir = "db/SP500_WIND行业类"
+    sub_items = Block.get_items_by_parent(parent_block)
+    if sub_items:
+        for name, item in sub_items.items():
+            stocks = block_cache.get_stock_codes(item.id).codes
+            if len(stocks) == 0:
+                continue
+            db = FinanceDBManager(block=item, db_dir=db_dir)
+            db.fetch_block_data(update=True)
+            # db.fetch_stock_data(stock_code="NVDA.O")
+    else:
+        print("没有找到任何子项目")

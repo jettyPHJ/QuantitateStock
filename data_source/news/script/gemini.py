@@ -1,6 +1,9 @@
 from google import genai
 from google.genai import types
 from utils.analyzer import NewsAnalyzer, retry, format_response, ResKind
+from data_source.finance.script.wind import get_price_change_records
+from data_source.finance.script.block_map import block_cache
+from utils.prompt import get_analyse_records
 
 
 class GeminiAnalyzer(NewsAnalyzer):
@@ -26,12 +29,12 @@ class GeminiAnalyzer(NewsAnalyzer):
         grounding_tool = types.Tool(google_search=types.GoogleSearch())
         config = types.GenerateContentConfig(
             temperature=0.1,
-            max_output_tokens=1024,
+            max_output_tokens=2048,
             tools=[grounding_tool],
-            thinking_config=types.ThinkingConfig(thinking_budget=256),
+            thinking_config=types.ThinkingConfig(thinking_budget=1024),
         )
         response = self.client.models.generate_content(
-            model="gemini-2.5-flash",
+            model="gemini-2.5-pro",
             contents=prompt,
             config=config,
         )
@@ -49,7 +52,7 @@ class GeminiAnalyzer(NewsAnalyzer):
             thinking_config=types.ThinkingConfig(thinking_budget=128),
         )
         response = self.client.models.generate_content(
-            model="gemini-2.5-flash",
+            model="gemini-2.5-pro",
             contents=prompt,
             config=config,
         )
@@ -79,22 +82,23 @@ if __name__ == "__main__":
     analyzer = GeminiAnalyzer()
 
     # ------生成重要新闻------
-    # stock_code = "9988.HK"
-    # block_code = "1000069991000000"
-    # year = 2025
+    stock_code = "NVDA.O"
+    block_code = "1000015222000000"
+    start_year, end_year = 2023, 2023
 
-    # price_changes = get_price_change_records(stock_code, block_code, f"{year}-08-25", f"{year}-12-31")
-    # analyse_records = get_analyse_records(price_changes)
+    price_changes = get_price_change_records(stock_code, block_code, f"{start_year}-04-01", f"{end_year}-6-30")
+    analyse_records = get_analyse_records(price_changes)
+    print("重点分析目录：", analyse_records)
 
-    # news = analyzer.get_important_news(stock_code, analyse_records[0])
-    # print("Gemini 重要新闻：", news)
+    news = analyzer.get_important_news(stock_code, analyse_records[0])
+    print("Gemini 重要新闻：", news)
 
     # -------生成相关新闻-------
     # record = RelatedNewsRecord(
     #     year=2025,
     #     month=8,
     #     sector_name="Semiconductor products",
-    #     core_stock_tickers=get_stock_codes(Block.get("半导体产品").code),
+    #     core_stock_tickers=block_cache.get_stock_codes(Block.get("半导体产品").code).codes,
     # )
     # news = analyzer.get_related_news(record)
     # print("Gemini 相关新闻：", news)
