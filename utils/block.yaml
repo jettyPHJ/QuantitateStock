@@ -1,14 +1,14 @@
-芯片:
+US_芯片:
   id: "1000041891000000"
   name_en: US Chips
   description_en: Companies engaged in the design, manufacture, and sale of semiconductor chips.
 
-半导体:
+US_半导体:
   id: "1000041892000000"
   name_en: US Semiconductors
   description_en: Companies producing semiconductor products and components.
 
-无人驾驶:
+US_无人驾驶:
   id: "1000041895000000"
   name_en: US Autonomous Driving
   description_en: Companies developing autonomous driving technologies and self-driving vehicles.

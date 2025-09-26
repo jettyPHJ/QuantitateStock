@@ -4,7 +4,7 @@ from utils.block import Block
 import time
 import math
 import utils.feature as ft
-from typing import List
+from typing import List, Dict, Any
 from utils.prompt import PriceChangeRecord
 
 w.start()
@@ -145,6 +145,107 @@ class WindFinancialDataFetcher:
                 time.sleep(0.05)
 
         return all_data
+
+    def get_update_data(self, row_data: dict, modules: List[str] = None) -> Dict:
+        """
+        根据已有行数据（统计开始日/结束日）抓取指定模块的区间统计信息，并返回更新字典。
+        
+        :param row_data: 包含 '统计开始日' 和 '统计结束日' 的行数据
+        :param modules: 要更新的模块列表，可选值 'stock' 和 'block'。默认 None（不抓取任何模块）
+        :return: 字典，包含抓取的数据
+        """
+        allowed_modules = {"stock", "block"}
+
+        if modules is None:
+            # 默认不抓取任何模块
+            modules = []
+        else:
+            # 检查输入合法性
+            invalid = set(modules) - allowed_modules
+            if invalid:
+                raise ValueError(f"[Error] modules 参数包含非法值: {invalid}. 可选值: {allowed_modules}")
+
+        start_day = row_data.get("统计开始日")
+        end_day = row_data.get("统计结束日")
+        if not start_day or not end_day:
+            return {}
+
+        result = {}
+
+        if "stock" in modules:
+            try:
+                stock_stats = self.get_stock_data(start_day, end_day)
+                result.update(stock_stats)
+            except Exception as e:
+                print(f"[Warning] 股票区间数据抓取失败: {row_data} -> {e}")
+
+        if "block" in modules:
+            try:
+                block_stats = self.get_block_data(start_day, end_day)
+                result.update(block_stats)
+            except Exception as e:
+                print(f"[Warning] 板块区间数据抓取失败: {row_data} -> {e}")
+
+        return result
+
+
+# TODO：待进一步优化到单个指标，节约api调用
+def fetch_data_for_period(stock_code: str, start_day: str, end_day: str, indicators: List[str],
+                          block_code: str = None) -> Dict[str, Any]:
+    """
+    为指定股票和时间段，抓取一系列指定的指标数据。
+    该函数会自动区分指标是属于个股还是板块，并调用相应的Wind接口。
+
+    :param stock_code: 股票代码 (e.g., "NVDA.O")
+    :param start_day: 统计开始日期 (e.g., "2023-01-01")
+    :param end_day: 统计结束日期 (e.g., "2023-03-31")
+    :param indicators: 需要抓取的指标名称列表 (e.g., ['换手率', '市盈率', '板块换手率'])
+    :param block_code: 板块代码，如果需要抓取板块指标则必须提供
+    :return: 一个包含所有成功抓取到的指标和其值的字典
+    """
+    if not indicators:
+        return {}
+
+    merged_data_map = {}
+    start_day_int, end_day_int = int(start_day.replace("-", "")), int(end_day.replace("-", ""))
+
+    # 1. 区分个股指标和板块指标 (依赖 ft 模块中的定义)
+    stock_indicators_to_fetch = [name for name in indicators if name in ft.get_feature_names_by_source("股市")]
+    block_indicators_to_fetch = [name for name in indicators if name in ft.get_feature_names_by_source("板块")]
+
+    # 2. 抓取个股指标
+    if stock_indicators_to_fetch:
+        try:
+            wss_trade_days = check_wind_data(
+                w.wss(stock_code, "trade_days_per", f"startDate={start_day_int};endDate={end_day_int}"),
+                context=f"stock_code:{stock_code},获取交易天数")
+            [[trade_days]] = wss_trade_days.Data
+
+            if trade_days and trade_days > 0:
+                wss_stock_data = check_wind_data(
+                    w.wss(stock_code, ft.stock_wind, ft.stock_wind_opt(trade_days, end_day_int, start_day_int)),
+                    context=f"stock_code:{stock_code},获取区间股价统计信息")
+                stock_data_map = ft.build_translated_data_map(wss_stock_data.Fields, wss_stock_data.Data)
+                merged_data_map.update(stock_data_map)
+        except Exception as e:
+            print(f"[Warning] 抓取个股指标 for {stock_code} ({start_day} to {end_day}) 失败: {e}")
+
+    # 3. 抓取板块指标
+    if block_indicators_to_fetch:
+        if not block_code:
+            print(f"[Warning] 需要抓取板块指标 {block_indicators_to_fetch} 但未提供 block_code，已跳过。")
+        else:
+            try:
+                year = int(start_day.split('-')[0])
+                wsee_result = check_wind_data(
+                    w.wsee(block_code, ft.block_wind, ft.block_wind_opt(start_day_int, end_day_int, year)),
+                    context=f"block_code:{block_code},获取板块数据")
+                block_data_map = ft.build_translated_data_map(wsee_result.Fields, wsee_result.Data)
+                merged_data_map.update(block_data_map)
+            except Exception as e:
+                print(f"[Warning] 抓取板块指标 for {block_code} ({start_day} to {end_day}) 失败: {e}")
+
+    return merged_data_map
 
 
 def get_price_change_records(
