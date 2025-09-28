@@ -211,6 +211,62 @@ def run_drop_features(db_root_dir: str, drop_columns: List[str]):
     print("=" * 20 + " 工作流: [3] 删除列完成 " + "=" * 20 + "\n")
 
 
+def run_statistics(db_root_dir: str):
+    """
+    高级工作流：统计目录下所有数据库文件中，各列总数据量与缺失率（空字符串和NULL都算缺失）
+    汇总同名列 across 所有表
+    """
+    print("=" * 20 + " 工作流: [4] 数据库统计汇总 " + "=" * 20)
+
+    db_files = glob.glob(os.path.join(os.path.dirname(__file__), db_root_dir, '*.db'))
+    if not db_files:
+        print(f"在目录 '{db_root_dir}' 中未找到任何.db数据库文件。")
+        return
+
+    # 用于统计每列总行数和非缺失行数
+    col_total_count: Dict[str, int] = {}
+    col_valid_count: Dict[str, int] = {}
+
+    for db_path in db_files:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+
+        # 获取所有用户表
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")
+        table_names = [row[0] for row in cursor.fetchall()]
+        for table_name in table_names:
+            cursor.execute(f'SELECT COUNT(*) FROM "{table_name}"')
+            total_rows = cursor.fetchone()[0]
+            if total_rows == 0:
+                continue
+            cursor.execute(f'PRAGMA table_info("{table_name}")')
+            columns = [row[1] for row in cursor.fetchall()]
+            for col in columns:
+                # 统计非空且非空字符串的数量
+                cursor.execute(f'SELECT COUNT(*) FROM "{table_name}" WHERE "{col}" IS NOT NULL AND TRIM("{col}") <> ""')
+                valid_count = cursor.fetchone()[0]
+
+                # 累加总行数和非缺失行数
+                col_total_count[col] = col_total_count.get(col, 0) + total_rows
+                col_valid_count[col] = col_valid_count.get(col, 0) + valid_count
+        conn.close()
+
+    # 输出汇总
+    print(f"\n===== 数据库统计汇总 =====")
+    if col_total_count:
+        total_rows = next(iter(col_total_count.values()))
+        print(f"总行数: {total_rows}\n")
+        print(f"{'列名':<20} {'缺失率':>10}")
+        print("-" * 47)
+        for col, valid in col_valid_count.items():
+            missing_rate = (total_rows - valid) / total_rows
+            print(f"{col:<20} {missing_rate:>9.2%}")
+    else:
+        print("未统计到任何列数据")
+
+    print("=" * 20 + " 工作流: [4] 数据库统计汇总完成 " + "=" * 20 + "\n")
+
+
 # ==============================================================================
 # =====                         程序执行入口                               =====
 # ==============================================================================
@@ -219,8 +275,8 @@ if __name__ == "__main__":
 
     # --- 配置区 ---
     # 选择要运行的工作流:
-    # 1: 从wind里抓取数据 2: 新增列 3: 删除列
-    WORKFLOW_TO_RUN = 2
+    # 1: 从wind里抓取数据 2: 新增列 3: 删除列 4: 统计
+    WORKFLOW_TO_RUN = 4
 
     PARENT_BLOCK = "SP500_WIND行业类"
     DB_DIRECTORY = f"db/测试"
@@ -238,5 +294,8 @@ if __name__ == "__main__":
         features_to_drop = ft.get_feature_names_by_source("板块")
         run_drop_features(db_root_dir=DB_DIRECTORY, drop_columns=features_to_drop)
 
+    elif WORKFLOW_TO_RUN == 4:
+        run_statistics(db_root_dir=DB_DIRECTORY)
+
     else:
-        print("无效的 WORKFLOW_TO_RUN 值。请输入 1, 2 或 3。")
+        print("无效的 WORKFLOW_TO_RUN 值。请输入 1, 2, 3 或 4。")

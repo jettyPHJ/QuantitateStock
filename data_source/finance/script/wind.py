@@ -14,9 +14,62 @@ start_point = "2005-01-01"
 
 
 def check_wind_data(wind_data, context=""):
+    """检查Wind返回数据，若有错误则抛出异常。"""
     if wind_data.ErrorCode != 0:
-        raise RuntimeError(f"[Wind ERROR] {context} 请求失败，错误码：{wind_data.ErrorCode}, fields: {wind_data.Fields}")
+        # 打印更详细的错误信息，便于调试
+        error_msg = f"[Wind ERROR] {context} 请求失败, Code: {wind_data.ErrorCode}, Fields: {getattr(wind_data, 'Fields', 'N/A')}"
+        raise RuntimeError(error_msg)
     return wind_data
+
+
+def fetch_data_for_period(stock_code: str, block_code: str, features_cn: List[str],
+                          context: Dict[str, Any]) -> Dict[str, Any]:
+    """
+    [核心函数] 为指定股票和时间段，根据特征配置智能地抓取一系列指标。
+    
+    该函数利用 ft.group_features_for_api_call 将不同API和参数的特征分组，
+    实现最高效的批量调用。
+
+    :param stock_code: 股票代码 (e.g., "NVDA.O")
+    :param block_code: 板块代码 (e.g., "1000015221000000")
+    :param features_cn: 需要抓取的中文特征名列表
+    :param context: 包含所有动态参数的上下文，如 startDate, endDate, rptDate 等
+    :return: 包含所有成功抓取到的 {特征名: 值} 的字典
+    """
+    if not features_cn:
+        return {}
+
+    # 1. 根据API和参数要求，对特征进行智能分组
+    api_call_groups = ft.group_features_for_api_call(features_cn, context)
+
+    final_data_map = {}
+
+    # 2. 遍历每个组，执行一次API调用
+    for (api, options), group_features_cn in api_call_groups.items():
+        # 将中文名列表转换为Wind字段列表
+        wind_fields = ft.translate_to_wind_fields(group_features_cn)
+        fields_str = ",".join(wind_fields)
+
+        # 根据API类型选择合适的Wind函数和代码
+        api_func = getattr(w, api, None)
+        code = block_code if api in ['wsee', 'wset'] else stock_code
+
+        if not api_func or not code:
+            print(f"[警告] API '{api}' 不支持或代码缺失，跳过特征: {group_features_cn}")
+            continue
+
+        try:
+            # 统一调用接口
+            wind_result = check_wind_data(api_func(code, fields_str, options), context=f"API={api}, Code={code}")
+
+            # 将返回结果转换为 {中文名: 值} 的字典并合并
+            group_data_map = ft.build_translated_data_map(wind_result.Fields, wind_result.Data)
+            final_data_map.update(group_data_map)
+
+        except Exception as e:
+            print(f"[警告] 抓取数据失败 for group {group_features_cn}. Error: {e}")
+
+    return final_data_map
 
 
 class WindFinancialDataFetcher:
@@ -70,182 +123,63 @@ class WindFinancialDataFetcher:
         self._report_dates = (report_dates, pub_dates)
         return self._report_dates
 
-    # 获取上市公司各季度财报数据
-    def get_finance_data(self, rpt_date: str):
-        date = int(rpt_date.replace("-", ""))
-
-        wss_result = check_wind_data(w.wss(self.stock_code, ft.features_wind, ft.features_wind_opt(date)),
-                                     context=f"stock_code:{self.stock_code},获取财报数据")
-
-        finance_data_map = ft.build_translated_data_map(wss_result.Fields, wss_result.Data)
-
-        return finance_data_map
-
-    # 获取区间内的股价相关统计信息
-    def get_stock_data(self, start_day: str, end_day: str):
-        start_day_int, end_day_int = int(start_day.replace("-", "")), int(end_day.replace("-", ""))
-
-        # 提取股票交易天数
-        wss_result = check_wind_data(
-            w.wss(self.stock_code, "trade_days_per", f"startDate={start_day_int};endDate={end_day_int}"),
-            context=f"stock_code:{self.stock_code},获取交易天数")
-        [[trade_days]] = wss_result.Data
-
-        wss_result = check_wind_data(
-            w.wss(self.stock_code, ft.stock_wind, ft.stock_wind_opt(trade_days, end_day_int, start_day_int)),
-            context=f"stock_code:{self.stock_code},获取区间股价统计信息")
-
-        stock_data_map = ft.build_translated_data_map(wss_result.Fields, wss_result.Data)
-
-        return stock_data_map
-
-    # 获取板块相关统计信息
-    def get_block_data(self, start_day: str, end_day: str):
-        start_day_int, end_day_int = int(start_day.replace("-", "")), int(end_day.replace("-", ""))
-        year = int(start_day.split('-')[0])
-        wsee_result = check_wind_data(
-            w.wsee(self.block_code, ft.block_wind, ft.block_wind_opt(start_day_int, end_day_int, year)),
-            context=f"stock_code:{self.stock_code},获取板块数据")
-
-        block_data_map = ft.build_translated_data_map(wsee_result.Fields, wsee_result.Data)
-
-        return block_data_map
-
     # 获取单支股票所有信息
-    def get_data(self):
+    def get_data(self) -> List[Dict[str, Any]]:
+        """
+        获取单支股票在所有报告期的全量特征数据。
+        """
         report_dates, pub_dates = self.get_report_dates()
+        if not report_dates:
+            return []
 
         all_data = []
 
-        for i in range(1, len(report_dates)):
-            report_date = report_dates[i]
-            pub_date = pub_dates[i]
-            prev_pub_date = pub_dates[i - 1]  # 上一期发布日期
+        features_to_fetch = (ft.get_feature_names_by_source("财报") + ft.get_feature_names_by_source("股市") +
+                             ft.get_feature_names_by_source("板块"))
 
-            start_day = prev_pub_date
-            end_day = pub_date
+        for i in range(1, len(report_dates)):
+            report_date_str = report_dates[i]
+            pub_date_str = pub_dates[i]
+            prev_pub_date_str = pub_dates[i - 1]
 
             try:
-                finance_data = self.get_finance_data(report_date)
-                stock_data = self.get_stock_data(start_day, end_day)
-                block_data = self.get_block_data(start_day, end_day)
+                # --- 新增逻辑：提前获取交易日数 ---
+                start_day_int = int(prev_pub_date_str.replace("-", ""))
+                end_day_int = int(pub_date_str.replace("-", ""))
 
-                merged = {
-                    "报告期": report_date, "发布日期": pub_date, "统计开始日": start_day, "统计结束日": end_day, **finance_data,
-                    **stock_data, **block_data
+                wss_trade_days = check_wind_data(
+                    w.wss(self.stock_code, "trade_days_per", f"startDate={start_day_int};endDate={end_day_int}"),
+                    context=f"stock_code:{self.stock_code}, 获取交易天数")
+                # Wind返回的数据可能是None，需要做保护
+                trade_days = wss_trade_days.Data[0][0] if wss_trade_days.Data and wss_trade_days.Data[0] else 0
+                if trade_days is None:
+                    trade_days = 0
+                # --- 结束新增逻辑 ---
+
+                # 构造包含 trade_days 的完整上下文
+                context = {
+                    "rptDate": report_date_str.replace("-", ""),
+                    "startDate": prev_pub_date_str,
+                    "endDate": pub_date_str,
+                    "trade_days":
+                        int(trade_days)  # 确保是整数
                 }
 
-                all_data.append(merged)
+                fetched_data = fetch_data_for_period(self.stock_code, self.block_code, features_to_fetch, context)
+
+                record = {
+                    "报告期": report_date_str, "发布日期": pub_date_str, "统计开始日": prev_pub_date_str, "统计结束日": pub_date_str,
+                    **fetched_data
+                }
+                all_data.append(record)
 
             except Exception as e:
-                print(f"[Warning] 数据抓取失败：报告期 {report_date} -> {e}")
+                print(f"[Warning] 数据抓取失败：报告期 {report_date_str} -> {e}")
 
             finally:
-                # 成功或失败都 sleep
                 time.sleep(0.05)
 
         return all_data
-
-    def get_update_data(self, row_data: dict, modules: List[str] = None) -> Dict:
-        """
-        根据已有行数据（统计开始日/结束日）抓取指定模块的区间统计信息，并返回更新字典。
-        
-        :param row_data: 包含 '统计开始日' 和 '统计结束日' 的行数据
-        :param modules: 要更新的模块列表，可选值 'stock' 和 'block'。默认 None（不抓取任何模块）
-        :return: 字典，包含抓取的数据
-        """
-        allowed_modules = {"stock", "block"}
-
-        if modules is None:
-            # 默认不抓取任何模块
-            modules = []
-        else:
-            # 检查输入合法性
-            invalid = set(modules) - allowed_modules
-            if invalid:
-                raise ValueError(f"[Error] modules 参数包含非法值: {invalid}. 可选值: {allowed_modules}")
-
-        start_day = row_data.get("统计开始日")
-        end_day = row_data.get("统计结束日")
-        if not start_day or not end_day:
-            return {}
-
-        result = {}
-
-        if "stock" in modules:
-            try:
-                stock_stats = self.get_stock_data(start_day, end_day)
-                result.update(stock_stats)
-            except Exception as e:
-                print(f"[Warning] 股票区间数据抓取失败: {row_data} -> {e}")
-
-        if "block" in modules:
-            try:
-                block_stats = self.get_block_data(start_day, end_day)
-                result.update(block_stats)
-            except Exception as e:
-                print(f"[Warning] 板块区间数据抓取失败: {row_data} -> {e}")
-
-        return result
-
-
-# TODO：待进一步优化到单个指标，节约api调用
-def fetch_data_for_period(stock_code: str, start_day: str, end_day: str, indicators: List[str],
-                          block_code: str = None) -> Dict[str, Any]:
-    """
-    为指定股票和时间段，抓取一系列指定的指标数据。
-    该函数会自动区分指标是属于个股还是板块，并调用相应的Wind接口。
-
-    :param stock_code: 股票代码 (e.g., "NVDA.O")
-    :param start_day: 统计开始日期 (e.g., "2023-01-01")
-    :param end_day: 统计结束日期 (e.g., "2023-03-31")
-    :param indicators: 需要抓取的指标名称列表 (e.g., ['换手率', '市盈率', '板块换手率'])
-    :param block_code: 板块代码，如果需要抓取板块指标则必须提供
-    :return: 一个包含所有成功抓取到的指标和其值的字典
-    """
-    if not indicators:
-        return {}
-
-    merged_data_map = {}
-    start_day_int, end_day_int = int(start_day.replace("-", "")), int(end_day.replace("-", ""))
-
-    # 1. 区分个股指标和板块指标 (依赖 ft 模块中的定义)
-    stock_indicators_to_fetch = [name for name in indicators if name in ft.get_feature_names_by_source("股市")]
-    block_indicators_to_fetch = [name for name in indicators if name in ft.get_feature_names_by_source("板块")]
-
-    # 2. 抓取个股指标
-    if stock_indicators_to_fetch:
-        try:
-            wss_trade_days = check_wind_data(
-                w.wss(stock_code, "trade_days_per", f"startDate={start_day_int};endDate={end_day_int}"),
-                context=f"stock_code:{stock_code},获取交易天数")
-            [[trade_days]] = wss_trade_days.Data
-
-            if trade_days and trade_days > 0:
-                wss_stock_data = check_wind_data(
-                    w.wss(stock_code, ft.stock_wind, ft.stock_wind_opt(trade_days, end_day_int, start_day_int)),
-                    context=f"stock_code:{stock_code},获取区间股价统计信息")
-                stock_data_map = ft.build_translated_data_map(wss_stock_data.Fields, wss_stock_data.Data)
-                merged_data_map.update(stock_data_map)
-        except Exception as e:
-            print(f"[Warning] 抓取个股指标 for {stock_code} ({start_day} to {end_day}) 失败: {e}")
-
-    # 3. 抓取板块指标
-    if block_indicators_to_fetch:
-        if not block_code:
-            print(f"[Warning] 需要抓取板块指标 {block_indicators_to_fetch} 但未提供 block_code，已跳过。")
-        else:
-            try:
-                year = int(start_day.split('-')[0])
-                wsee_result = check_wind_data(
-                    w.wsee(block_code, ft.block_wind, ft.block_wind_opt(start_day_int, end_day_int, year)),
-                    context=f"block_code:{block_code},获取板块数据")
-                block_data_map = ft.build_translated_data_map(wsee_result.Fields, wsee_result.Data)
-                merged_data_map.update(block_data_map)
-            except Exception as e:
-                print(f"[Warning] 抓取板块指标 for {block_code} ({start_day} to {end_day}) 失败: {e}")
-
-    return merged_data_map
 
 
 def get_price_change_records(
@@ -310,9 +244,11 @@ def get_price_change_records(
 
 # --------------------- 测试入口 ---------------------
 if __name__ == "__main__":
-    block_code = Block.get("US_芯片").code
-    fetcher = WindFinancialDataFetcher("NVDA.O", block_code)
-    data = fetcher.get_data()
+    block_code = Block.get("US_芯片").id
+    # fetcher = WindFinancialDataFetcher("NVDA.O", block_code)
+    # data = fetcher.get_data()
+    # print(data)
+    # res = get_price_change_records("NVDA.O", block_code, "2025-08-01", "2025-08-20")
+    # print("res:", res)
+    data = fetch_data_for_period("NVDA.O", block_code, ["营业收入(单季)"], {"rptDate": "2024-12-31"})
     print(data)
-    res = get_price_change_records("NVDA.O", block_code, "2025-08-01", "2025-08-20")
-    print("res:", res)

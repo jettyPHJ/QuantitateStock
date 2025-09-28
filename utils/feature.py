@@ -1,14 +1,17 @@
 import os
 import yaml
 from enum import Enum
-from dataclasses import dataclass
+from dataclasses import dataclass, field
+from typing import Optional, Dict, Any, List, Tuple
 import numpy as np
 import math
 from datetime import datetime, date
+
 # ------------------------- 1. 枚举定义 -------------------------
 
 
 class ScalingMethod(Enum):
+    """数据归一化方法枚举"""
     NONE = "none"
     ZSCORE = "z-score"
     LOG_ZSCORE = "log+z-score"
@@ -20,129 +23,217 @@ class ScalingMethod(Enum):
 
 @dataclass
 class FeatureConfig:
-    train: bool
-    norm: ScalingMethod
-    source: str
-    clip_scale: int | None = None  # 仅当 norm == CLIP 时使用
+    """
+    单个特征的完整配置信息。
+    """
+    train: bool  # 是否作为训练特征
+    norm: ScalingMethod  # 归一化方法
+    source: str  # 数据来源分类（财报、股市、板块等）
+    clip_scale: Optional[float] = None  # 当 norm == CLIP 时，用于缩放和裁剪的最大值
+
+    # ------ Wind 相关配置（用于每个特征单独控制查询） ------
+    wind_api: Optional[str] = None  # e.g., "wsd", "wss", "wset", "wsi"
+    wind_field: Optional[str] = None  # 如果希望覆盖 feature.yaml 的映射，在此处指定
+
+    # wind_params 是一个 key->value 映射，最终被格式化成 "key=val;key2=val2" 的 options 字符串
+    # value 可以是字符串模板，例如 ""、""、"{trade_days}" 等，在运行时被动态替换
+    wind_params: Dict[str, Any] = field(default_factory=dict)
 
 
 # ------------------------- 3. 特征元数据 -------------------------
 
-FEATURE_META: dict[str, FeatureConfig] = {
+# 核心配置区域：定义所有特征的元数据
+# 注意：wind_params 中的 key 必须是 Wind API 认可的参数名
+FEATURE_META: Dict[str, FeatureConfig] = {
     # 财报数值
-    "营业收入(单季)": FeatureConfig(True, ScalingMethod.LOG_ZSCORE, "财报"),
-    "营业收入(TTM)": FeatureConfig(True, ScalingMethod.LOG_ZSCORE, "财报"),
-    "经营活动现金流(TTM)": FeatureConfig(True, ScalingMethod.ZSCORE, "财报"),
+    "营业收入(单季)": FeatureConfig(True, ScalingMethod.LOG_ZSCORE, "财报", wind_api="wss", wind_field="wgsd_qfa_sales_oper",
+                              wind_params={"unit": "1", "rptDate": "", "rptType": "1", "currencyType": " "}),
+    "营业收入(TTM)": FeatureConfig(True, ScalingMethod.LOG_ZSCORE, "财报", wind_api="wss", wind_field="or_ttm3",
+                               wind_params={"unit": 1, "rptDate": "", "rptType": 1}),
+    "经营活动现金流(TTM)": FeatureConfig(True, ScalingMethod.ZSCORE, "财报", wind_api="wss", wind_field="operatecashflow_ttm3",
+                                  wind_params={"unit": 1, "rptDate": "", "rptType": 1}),
 
     # 财报比例
-    "毛利率(单季)": FeatureConfig(True, ScalingMethod.CLIP, "财报"),
-    "毛利率(TTM)": FeatureConfig(True, ScalingMethod.CLIP, "财报"),
-    "净利率(单季)": FeatureConfig(True, ScalingMethod.CLIP, "财报"),
-    "净利率(TTM)": FeatureConfig(True, ScalingMethod.CLIP, "财报"),
-    "总资产收益率(单季)": FeatureConfig(True, ScalingMethod.CLIP, "财报"),
-    "总资产收益率(TTM)": FeatureConfig(True, ScalingMethod.CLIP, "财报"),
-    "资产负债率": FeatureConfig(True, ScalingMethod.CLIP, "财报"),
-    "总资产周转率": FeatureConfig(True, ScalingMethod.CLIP, "财报"),
+    "毛利率(单季)": FeatureConfig(True, ScalingMethod.CLIP, "财报", clip_scale=1.0, wind_api="wss",
+                             wind_field="wgsd_qfa_grossprofitmargin",
+                             wind_params={"unit": 1, "rptDate": "", "rptType": 1}),
+    "毛利率(TTM)": FeatureConfig(True, ScalingMethod.CLIP, "财报", clip_scale=1.0, wind_api="wss",
+                              wind_field="grossprofitmargin_ttm3", wind_params={"unit": 1, "rptDate": "",
+                                                                                "rptType": 1}),
+    "净利率(单季)": FeatureConfig(True, ScalingMethod.CLIP, "财报", clip_scale=1.0, wind_api="wss",
+                             wind_field="wgsd_qfa_netprofitmargin",
+                             wind_params={"unit": 1, "rptDate": "", "rptType": 1}),
+    "净利率(TTM)": FeatureConfig(True, ScalingMethod.CLIP, "财报", clip_scale=1.0, wind_api="wss",
+                              wind_field="netprofitmargin_ttm3", wind_params={"unit": 1, "rptDate": "", "rptType": 1}),
+    "总资产收益率(单季)": FeatureConfig(True, ScalingMethod.CLIP, "财报", clip_scale=1.0, wind_api="wss",
+                                wind_field="wgsd_qfa_roa", wind_params={"unit": 1, "rptDate": "", "rptType": 1}),
+    "总资产收益率(TTM)": FeatureConfig(True, ScalingMethod.CLIP, "财报", clip_scale=1.0, wind_api="wss", wind_field="roa_ttm2",
+                                 wind_params={"unit": 1, "rptDate": "", "rptType": 1}),
+    "资产负债率": FeatureConfig(True, ScalingMethod.CLIP, "财报", clip_scale=1.0, wind_api="wss",
+                           wind_field="wgsd_debttoassets", wind_params={"unit": 1, "rptDate": "", "rptType": 1}),
+    "总资产周转率": FeatureConfig(True, ScalingMethod.CLIP, "财报", clip_scale=1.0, wind_api="wss",
+                            wind_field="wgsd_assetsturn", wind_params={"unit": 1, "rptDate": "", "rptType": 1}),
 
-    # 股市数值
-    "区间收盘价": FeatureConfig(True, ScalingMethod.ZSCORE, "股市"),
-    "区间日均收盘价": FeatureConfig(True, ScalingMethod.ZSCORE, "股市"),
-    "区间最高收盘价": FeatureConfig(True, ScalingMethod.ZSCORE, "股市"),
-    "区间最低收盘价": FeatureConfig(True, ScalingMethod.ZSCORE, "股市"),
-    "区间最高收盘价日期": FeatureConfig(False, ScalingMethod.NONE, "股市"),
-    "区间最低收盘价日期": FeatureConfig(False, ScalingMethod.NONE, "股市"),
+    # 股市数值 (wss - 获取区间统计)
+    "区间收盘价": FeatureConfig(True, ScalingMethod.ZSCORE, "股市", wind_api="wss", wind_field="close_per",
+                           wind_params={"tradeDate": "", "priceAdj": "F"}),
+    "区间日均收盘价": FeatureConfig(True, ScalingMethod.ZSCORE, "股市", wind_api="wss", wind_field="avgclose_per",
+                             wind_params={"ndays": "-0", "tradeDate": ""}),
+    "区间最高收盘价": FeatureConfig(True, ScalingMethod.ZSCORE, "股市", wind_api="wss", wind_field="max_close_per",
+                             wind_params={"startDate": "", "endDate": "", "priceAdj": "F"}),
+    "区间最低收盘价": FeatureConfig(True, ScalingMethod.ZSCORE, "股市", wind_api="wss", wind_field="min_close_per",
+                             wind_params={"startDate": "", "endDate": "", "priceAdj": "F"}),
+    "区间最高收盘价日期": FeatureConfig(False, ScalingMethod.NONE, "股市", wind_api="wss", wind_field="max_close_date_per",
+                               wind_params={"startDate": "", "endDate": "", "priceAdj": "F"}),
+    "区间最低收盘价日期": FeatureConfig(False, ScalingMethod.NONE, "股市", wind_api="wss", wind_field="min_close_date_per",
+                               wind_params={"startDate": "", "endDate": "", "priceAdj": "F"}),
 
     # 股市比例
-    "区间振幅": FeatureConfig(True, ScalingMethod.CLIP, "股市"),
-    "区间日均换手率": FeatureConfig(True, ScalingMethod.CLIP, "股市"),
-    "区间平均PE": FeatureConfig(False, ScalingMethod.CLIP, "股市"),
-    "区间平均PB": FeatureConfig(False, ScalingMethod.CLIP, "股市"),
-    "区间平均PS": FeatureConfig(False, ScalingMethod.CLIP, "股市"),
-    "市现率PCF": FeatureConfig(False, ScalingMethod.CLIP, "股市", 1000),
+    "区间振幅": FeatureConfig(True, ScalingMethod.CLIP, "股市", clip_scale=1.0, wind_api="wss", wind_field="swing_per",
+                          wind_params={"startDate": "", "endDate": ""}),
+    "区间日均换手率": FeatureConfig(True, ScalingMethod.CLIP, "股市", clip_scale=1.0, wind_api="wss", wind_field="avg_turn_per",
+                             wind_params={"startDate": "", "endDate": ""}),
+    "区间平均PE": FeatureConfig(False, ScalingMethod.CLIP, "股市", clip_scale=1000.0, wind_api="wss",
+                            wind_field="val_pettm_avg", wind_params={"tradeDate": ""}),
+    "区间平均PB": FeatureConfig(False, ScalingMethod.CLIP, "股市", clip_scale=1000.0, wind_api="wss", wind_field="val_pb_avg",
+                            wind_params={"tradeDate": ""}),
+    "区间平均PS": FeatureConfig(False, ScalingMethod.CLIP, "股市", clip_scale=1000.0, wind_api="wss",
+                            wind_field="val_psttm_avg", wind_params={"tradeDate": ""}),
+    "市现率PCF": FeatureConfig(False, ScalingMethod.CLIP, "股市", clip_scale=1000.0, wind_api="wss",
+                            wind_field="pcf_ocf_ttm", wind_params={"tradeDate": ""}),
 
-    # 板块比例
-    "板块涨跌幅": FeatureConfig(True, ScalingMethod.CLIP, "板块"),
-    "板块日均换手率": FeatureConfig(True, ScalingMethod.CLIP, "板块"),
-    "板块PE": FeatureConfig(True, ScalingMethod.CLIP, "板块"),
-    "板块PB": FeatureConfig(True, ScalingMethod.CLIP, "板块"),
-    "板块PS": FeatureConfig(True, ScalingMethod.CLIP, "板块"),
-    "板块PCF": FeatureConfig(True, ScalingMethod.CLIP, "板块", 1000),
+    # 板块比例 (wsee - 获取板块历史估值)
+    "板块涨跌幅": FeatureConfig(True, ScalingMethod.CLIP, "板块", clip_scale=1.0, wind_api="wsee",
+                           wind_field="sec_pq_pct_chg_tmc_wavg",
+                           wind_params={"startDate": "", "endDate": "", "DynamicTime": "0"}),
+    "板块日均换手率": FeatureConfig(True, ScalingMethod.CLIP, "板块", clip_scale=1.0, wind_api="wsee",
+                             wind_field="sec_pq_avgturn_avg",
+                             wind_params={"startDate": "", "endDate": "", "DynamicTime": "0"}),
+    "板块PE": FeatureConfig(True, ScalingMethod.CLIP, "板块", clip_scale=1000.0, wind_api="wsee",
+                          wind_field="sec_pe_ttm_media_glb", wind_params={"tradeDate": "", "excludeRule": "1"}),
+    "板块PB": FeatureConfig(True, ScalingMethod.CLIP, "板块", clip_scale=1000.0, wind_api="wsee",
+                          wind_field="sec_pb_media_glb",
+                          wind_params={"tradeDate": "", "year": "", "excludeRule": "1", "DynamicTime": "0"}),
+    "板块PS": FeatureConfig(True, ScalingMethod.CLIP, "板块", clip_scale=1000.0, wind_api="wsee",
+                          wind_field="sec_ps_media_glb",
+                          wind_params={"tradeDate": "", "year": "", "excludeRule": "1", "DynamicTime": "0"}),
+    "板块PCF": FeatureConfig(True, ScalingMethod.CLIP, "板块", clip_scale=1000.0, wind_api="wsee",
+                           wind_field="sec_pcf_media_glb",
+                           wind_params={"tradeDate": "", "year": "", "excludeRule": "1", "DynamicTime": "0"}),
 }
 
-# ------------------------- 4. 特征映射文件加载 -------------------------
-
-base_dir = os.path.dirname(__file__)
-feature_map_path = os.path.join(base_dir, "feature.yaml")
-
-with open(feature_map_path, "r", encoding="utf-8") as f:
-    FEATURE_NAME_MAP = yaml.safe_load(f)  # 中文名 → Wind 字段
-    REVERSE_MAP = {v.lower(): k for k, v in FEATURE_NAME_MAP.items()}  # Wind → 中文
-
-# ------------------------- 5. 工具函数 -------------------------
+# ------------------------- 4. 核心工具函数 -------------------------
 
 
-# 中文名 → Wind 字段
-def translate_to_wind_fields(feature_list_cn: list[str]) -> list[str]:
-    return [FEATURE_NAME_MAP.get(f, f) for f in feature_list_cn]
+def translate_to_wind_fields(feature_list_cn: List[str]) -> List[str]:
+    wind_fields = []
+    for name in feature_list_cn:
+        config = FEATURE_META.get(name)
+        if config and config.wind_field:
+            wind_fields.append(config.wind_field)
+        else:
+            # 没有 wind_field 就直接用中文名
+            wind_fields.append(name)
+    return wind_fields
 
 
-# Wind 字段 → 中文名
-def translate_to_chinese_fields(wind_field_list: list[str]) -> list[str]:
-    return [REVERSE_MAP.get(f.lower(), f) for f in wind_field_list]
+# 在 FEATURE_META 定义后加一个反查表
+WIND_TO_CN = {(cfg.wind_field or name).lower(): name for name, cfg in FEATURE_META.items()}
 
 
-# 获取某类数据来源（如“股市”）的特征列名（中文）
-def get_feature_names_by_source(source: str) -> list[str]:
+def translate_to_chinese_fields(wind_field_list: List[str]) -> List[str]:
+    return [WIND_TO_CN.get(f.lower(), f) for f in wind_field_list]
+
+
+def get_feature_names_by_source(source: str) -> List[str]:
+    """获取某类数据来源（如“股市”）的特征列名（中文）"""
     return [name for name, cfg in FEATURE_META.items() if cfg.source == source]
 
 
-# 获取可参与训练的特征列名（中文）
-def get_trainable_feature_names() -> list[str]:
+def get_trainable_feature_names() -> List[str]:
+    """获取可参与训练的特征列名（中文）"""
     return [name for name, cfg in FEATURE_META.items() if cfg.train]
 
 
-def build_translated_data_map(wind_fields: list[str], values: list[list]) -> dict:
+def build_translated_data_map(wind_fields: List[str], values: List[list]) -> Dict[str, Any]:
     """
-    将 Wind 字段名及对应数据转换为 中文字段 → 值 的映射。
-    如果值是 datetime/date 类型，则转为 'yyyy-mm-dd' 字符串。
-    空值和 NaN 将被转换为空字符串。
+    将 Wind 返回的字段名和数据，转换为 {中文名: 值} 的字典。
     """
     chinese_fields = translate_to_chinese_fields(wind_fields)
     result = {}
-
     for ch_name, val in zip(chinese_fields, values):
         v = val[0] if isinstance(val, list) and len(val) == 1 else val
-
         if v is None or (isinstance(v, float) and math.isnan(v)):
-            v = ""
+            v = None  # 统一使用 None 代表缺失值
         elif isinstance(v, (datetime, date)):
             v = v.strftime("%Y-%m-%d")
-
         result[ch_name] = v
-
     return result
 
 
-# ------------------------- 6. Wind 接口字段拼接 -------------------------
-
-features_wind = ",".join(translate_to_wind_fields(get_feature_names_by_source("财报")))
-stock_wind = ",".join(translate_to_wind_fields(get_feature_names_by_source("股市")))
-block_wind = ",".join(translate_to_wind_fields(get_feature_names_by_source("板块")))
+# ------------------------- 5. Wind 接口动态参数构建 -------------------------
 
 
-def features_wind_opt(date: int) -> str:
-    return f"unit=1;rptDate={date};rptType=1;currencyType="
+def build_wind_options(config: FeatureConfig, context: Dict[str, Any]) -> str:
+    """
+    根据 FeatureConfig 和上下文构建 Wind API 参数字符串。
+
+    wind_params 约定：
+    - 空字符串 "" → 必须从 context 提供对应 key
+    - 非空字符串 → 直接使用静态值
+
+    Args:
+        config: 特征配置
+        context: 动态上下文字典
+
+    Returns:
+        str: Wind API 参数字符串，例如 "tradeDate=20250101;unit=1"
+    """
+    param_list = []
+    for key, value in config.wind_params.items():
+        try:
+            if value == "":  # 动态值
+                final_value = context[key]
+            else:  # 静态值
+                final_value = value
+        except KeyError:
+            print(f"[错误] (特征: {config.wind_field}) 构建 Wind 参数失败，缺少上下文 key: {key}")
+            final_value = "<MISSING>"
+
+        param_list.append(f"{key}={final_value}")
+
+    return ";".join(param_list)
 
 
-def stock_wind_opt(trade_days: int, end_day: int, start_day: int) -> str:
-    return f"ndays=-{trade_days};tradeDate={end_day};startDate={start_day};endDate={end_day};priceAdj=F"
+def group_features_for_api_call(features_cn: List[str], context: Dict[str, Any]) -> Dict[Tuple[str, str], List[str]]:
+    """
+    [核心] 将一批特征根据其所需的API和参数进行分组，以便批量调用。
+
+    :param features_cn: 中文特征名列表。
+    :param context: 包含动态值的字典，用于构建 options。
+    :return: 一个字典，键为 (wind_api, options_string)，值为该组的中文特征名列表。
+    """
+    groups = {}
+    for name in features_cn:
+        config = FEATURE_META.get(name)
+        if not config or not config.wind_api:
+            print(f"[警告] 特征 '{name}' 缺少 'wind_api' 配置，已跳过。")
+            continue
+
+        # 为当前特征生成唯一的 options 字符串
+        options_str = build_wind_options(config, context)
+
+        # 使用 (api, options) 作为分组的键
+        group_key = (config.wind_api, options_str)
+
+        if group_key not in groups:
+            groups[group_key] = []
+        groups[group_key].append(name)
+
+    return groups
 
 
-def block_wind_opt(start_day: int, end_day: int, year: int) -> str:
-    return f"startDate={start_day};endDate={end_day};tradeDate={end_day};DynamicTime=0;excludeRule=2;year={year}"
-
-
-# ---------------------归一化函数-----------------------
+# ------------------------- 6. 归一化函数 -------------------------
 # 输入的是滑动窗口，归一化采用全部历史数据
 
 
@@ -191,3 +282,39 @@ def clip_normalize(arr, min_val=0.0, max_val=1.0):
     """
     arr = np.array(arr / max_val, dtype=float)
     return np.clip(arr, min_val, max_val)
+
+
+# ==============================================================================
+# =====                         程序执行入口 (示例)                          =====
+# ==============================================================================
+
+if __name__ == "__main__":
+
+    print("=============== 1. 演示特征分组功能 ===============")
+
+    # 模拟需要查询的特征列表
+    features_to_query = [
+        "营业收入(单季)",
+        "毛利率(单季)",  # 财报特征
+        "区间日均收盘价",
+        "区间振幅",  # 股市特征
+        "板块PE"  # 板块特征
+    ]
+
+    # 模拟动态上下文信息
+    runtime_context = {"rptDate": "20240331", "startDate": "2024-01-01", "endDate": "2024-03-31", "trade_days": 60}
+
+    # 调用分组函数
+    api_call_groups = group_features_for_api_call(features_to_query, runtime_context)
+
+    print(f"待查询特征: {features_to_query}")
+    print(f"运行时上下文: {runtime_context}\n")
+    print("智能分组后的API调用计划:")
+
+    for (api, options), features in api_call_groups.items():
+        wind_fields = translate_to_wind_fields(features)
+        print("-" * 40)
+        print(f"API类型: {api}")
+        print(f"API参数: {options}")
+        print(f"中文特征: {features}")
+        print(f"Wind字段: {wind_fields}")
