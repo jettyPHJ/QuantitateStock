@@ -1,6 +1,7 @@
 import sqlite3
 import os
 import glob
+from datetime import datetime
 from typing import Dict, List
 import data_source.finance.script.wind as wd
 from utils.block import Block, BlockItem
@@ -82,9 +83,11 @@ class FinanceDBUpdater:
         table_name = self._get_table_name(stock_code)
         # 1. 确保所有列都存在（新增的列初始化为NULL）
         self.add_columns_to_stock(stock_code, {name: 'REAL' for name in indicators})
-        # 2. 获取所有需要的列
-        cols = ["id", '"统计开始日"', '"统计结束日"'] + indicators
-        col_expr = ", ".join(cols)
+
+        # 2. 获取所有需要的列（id 和日期范围是必须的）
+        cols_to_select = ['"id"', '"报告期"', '"统计开始日"', '"统计结束日"'] + [f'"{ind}"' for ind in indicators]
+        col_expr = ", ".join(list(dict.fromkeys(cols_to_select)))  # 去重保持顺序
+
         try:
             self.cursor.execute(f'SELECT {col_expr} FROM "{table_name}"')
             rows = self.cursor.fetchall()
@@ -92,25 +95,56 @@ class FinanceDBUpdater:
             print(f"[错误] 无法读取 {table_name}：{e}")
             return
         print(f"[INFO] 当前处理 {stock_code} 中 {len(rows)} 条记录")
+
         # 3. 遍历行，只补充缺失的列值
         for row in rows:
-            row_dict = dict(zip([c.strip('"') for c in cols], row))
-            row_id, start_day, end_day = row_dict["id"], row_dict["统计开始日"], row_dict["统计结束日"]
+            # 将查询结果映射回字典
+            row_dict = dict(zip([c.strip('"') for c in list(dict.fromkeys(cols_to_select))], row))
+            row_id, rpt_date, start_day, end_day = row_dict["id"], row_dict["报告期"], row_dict["统计开始日"], row_dict["统计结束日"]
+
             # 找出该行缺失的特征列
-            missing_cols = [col for col in indicators if row_dict[col] is None]
+            missing_cols = [col for col in indicators if row_dict.get(col) is None or row_dict.get(col) == '']
             if not missing_cols:
                 continue  # 这一行特征已经全有了，跳过
+
             try:
-                # 调用外部API获取缺失的指标
-                update_data = wd.fetch_data_for_period(stock_code, start_day, end_day, missing_cols, self.block.id)
+                # --- 【关键修改】 ---
+                # 1. 为调用 fetch_data_for_period 准备 context
+                rpt_date = datetime.strptime(rpt_date, "%Y-%m-%d").strftime("%Y%m%d")
+                start_day = datetime.strptime(start_day, "%Y-%m-%d").strftime("%Y%m%d")
+                end_day = datetime.strptime(end_day, "%Y-%m-%d").strftime("%Y%m%d")
+
+                # 2. 与代码1逻辑一致，获取区间交易日数
+                wss_trade_days = wd.check_wind_data(
+                    wd.w.wss(stock_code, "trade_days_per", f"startDate={start_day};endDate={end_day}"),
+                    context=f"stock_code:{stock_code}, 获取交易天数 (enrich)")
+                ndays_int = -(wss_trade_days.Data[0][0] if wss_trade_days.Data and wss_trade_days.Data[0] else 63)
+
+                # 3. 构建完整的 context 字典
+                context = {
+                    "rptDate": rpt_date,
+                    "startDate": start_day,
+                    "endDate": end_day,
+                    "ndays": str(ndays_int),
+                    "tradeDate": end_day,
+                    "year": rpt_date[:4],
+                }
+
+                # 4. 抓取数据
+                update_data = wd.fetch_data_from_wind(stock_code=stock_code, block_code=self.block.id,
+                                                      features_cn=missing_cols, context=context)
+
                 if not update_data:
                     continue
-                # 只更新缺失列
+
+                # 只更新获取到的数据
                 set_expr = ", ".join(f'"{k}"=?' for k in update_data)
                 values = list(update_data.values())
                 self.cursor.execute(f'UPDATE "{table_name}" SET {set_expr} WHERE id=?', values + [row_id])
+
             except Exception as e:
                 print(f"    [更新失败] {stock_code} 行ID {row_id}: {e}")
+
         self.conn.commit()
 
     def enrich_block_with_features(self, indicators: List[str]):
@@ -274,9 +308,8 @@ def run_statistics(db_root_dir: str):
 if __name__ == "__main__":
 
     # --- 配置区 ---
-    # 选择要运行的工作流:
-    # 1: 从wind里抓取数据 2: 新增列 3: 删除列 4: 统计
-    WORKFLOW_TO_RUN = 4
+    # 选择要运行的工作流: 1: 从wind里抓取数据 2: 新增列 3: 删除列 4: 统计
+    WORKFLOW_TO_RUN = 2
 
     PARENT_BLOCK = "SP500_WIND行业类"
     DB_DIRECTORY = f"db/测试"
@@ -286,13 +319,10 @@ if __name__ == "__main__":
         run_initial_data_population(parent_block_name=PARENT_BLOCK, db_root_dir=DB_DIRECTORY)
 
     elif WORKFLOW_TO_RUN == 2:
-        features_to_add = ft.get_feature_names_by_source("板块")
-        run_add_new_features(db_root_dir=DB_DIRECTORY, new_features=features_to_add)
+        run_add_new_features(db_root_dir=DB_DIRECTORY, new_features=["板块PCF"])
 
     elif WORKFLOW_TO_RUN == 3:
-        # 示例: 删除之前添加的测试列
-        features_to_drop = ft.get_feature_names_by_source("板块")
-        run_drop_features(db_root_dir=DB_DIRECTORY, drop_columns=features_to_drop)
+        run_drop_features(db_root_dir=DB_DIRECTORY, drop_columns=["板块PCF"])
 
     elif WORKFLOW_TO_RUN == 4:
         run_statistics(db_root_dir=DB_DIRECTORY)

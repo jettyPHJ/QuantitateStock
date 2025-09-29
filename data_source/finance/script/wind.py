@@ -1,19 +1,30 @@
 from WindPy import w
 from datetime import datetime, date, timedelta
-from utils.block import Block
 import time
 import math
+from typing import List, Dict, Any, Protocol
 import utils.feature as ft
-from typing import List, Dict, Any
+from utils.block import Block
 from utils.prompt import PriceChangeRecord
 
 w.start()
 
 # 数据提取起始时间
-start_point = "2005-01-01"
+start_point = "2024-06-01"
 
 
-def check_wind_data(wind_data, context=""):
+class WindData(Protocol):
+    """
+    一个协议类，用于为 Wind API 返回的对象提供类型提示。
+    描述了代码中实际使用到的该对象的属性结构。
+    """
+    ErrorCode: int
+    Data: List[List[Any]]
+    Fields: List[str]
+    Times: List[datetime]
+
+
+def check_wind_data(wind_data: WindData, context="") -> WindData:
     """检查Wind返回数据，若有错误则抛出异常。"""
     if wind_data.ErrorCode != 0:
         # 打印更详细的错误信息，便于调试
@@ -22,8 +33,8 @@ def check_wind_data(wind_data, context=""):
     return wind_data
 
 
-def fetch_data_for_period(stock_code: str, block_code: str, features_cn: List[str],
-                          context: Dict[str, Any]) -> Dict[str, Any]:
+def fetch_data_from_wind(stock_code: str, block_code: str, features_cn: List[str],
+                         context: Dict[str, Any]) -> Dict[str, Any]:
     """
     [核心函数] 为指定股票和时间段，根据特征配置智能地抓取一系列指标。
     
@@ -138,9 +149,9 @@ class WindFinancialDataFetcher:
                              ft.get_feature_names_by_source("板块"))
 
         for i in range(1, len(report_dates)):
-            report_date_str = report_dates[i]
-            pub_date_str = pub_dates[i]
-            prev_pub_date_str = pub_dates[i - 1]
+            report_date_str: str = report_dates[i]
+            pub_date_str: str = pub_dates[i]
+            prev_pub_date_str: str = pub_dates[i - 1]
 
             try:
                 # --- 新增逻辑：提前获取交易日数 ---
@@ -150,22 +161,19 @@ class WindFinancialDataFetcher:
                 wss_trade_days = check_wind_data(
                     w.wss(self.stock_code, "trade_days_per", f"startDate={start_day_int};endDate={end_day_int}"),
                     context=f"stock_code:{self.stock_code}, 获取交易天数")
-                # Wind返回的数据可能是None，需要做保护
-                trade_days = wss_trade_days.Data[0][0] if wss_trade_days.Data and wss_trade_days.Data[0] else 0
-                if trade_days is None:
-                    trade_days = 0
-                # --- 结束新增逻辑 ---
+                # 安全取值，拿不到就给 63
+                ndays_int = -(wss_trade_days.Data[0][0] if wss_trade_days.Data and wss_trade_days.Data[0] else 63)
 
-                # 构造包含 trade_days 的完整上下文
                 context = {
                     "rptDate": report_date_str.replace("-", ""),
-                    "startDate": prev_pub_date_str,
-                    "endDate": pub_date_str,
-                    "trade_days":
-                        int(trade_days)  # 确保是整数
+                    "startDate": str(start_day_int),
+                    "endDate": str(end_day_int),
+                    "ndays": str(ndays_int),
+                    "tradeDate": pub_date_str.replace("-", ""),
+                    "year": datetime.strptime(report_date_str, "%Y-%m-%d").year,
                 }
 
-                fetched_data = fetch_data_for_period(self.stock_code, self.block_code, features_to_fetch, context)
+                fetched_data = fetch_data_from_wind(self.stock_code, self.block_code, features_to_fetch, context)
 
                 record = {
                     "报告期": report_date_str, "发布日期": pub_date_str, "统计开始日": prev_pub_date_str, "统计结束日": pub_date_str,
@@ -244,11 +252,24 @@ def get_price_change_records(
 
 # --------------------- 测试入口 ---------------------
 if __name__ == "__main__":
+
     block_code = Block.get("US_芯片").id
-    # fetcher = WindFinancialDataFetcher("NVDA.O", block_code)
-    # data = fetcher.get_data()
-    # print(data)
-    # res = get_price_change_records("NVDA.O", block_code, "2025-08-01", "2025-08-20")
-    # print("res:", res)
-    data = fetch_data_for_period("NVDA.O", block_code, ["营业收入(单季)"], {"rptDate": "2024-12-31"})
-    print(data)
+    stock_code = "NVDA.O"
+
+    choice = 1
+
+    if choice == 1:
+        fetcher = WindFinancialDataFetcher(stock_code, block_code)
+        data = fetcher.get_data()
+        print("get_data:", data)
+
+    elif choice == 2:
+        res = get_price_change_records(stock_code, block_code, "2025-08-01", "2025-08-20")
+        print("get_price_change_records:", res)
+
+    elif choice == 3:
+        data = fetch_data_from_wind(stock_code, block_code, ["营业收入(单季)"], {"rptDate": "2024-12-31"})
+        print("fetch_data_for_period:", data)
+
+    else:
+        print("无效的 choice 值，请选择 1 / 2 / 3")
