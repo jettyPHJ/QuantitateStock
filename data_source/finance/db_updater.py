@@ -4,9 +4,7 @@ import glob
 from datetime import datetime
 from typing import Dict, List
 import data_source.finance.script.wind as wd
-from utils.block import Block, BlockItem
-import utils.feature as ft
-from data_source.finance.script.block_map import block_cache
+from data_source.finance.script.block import Block
 from data_source.finance.database import FinanceDBManager
 # ------------------------------------
 
@@ -19,7 +17,7 @@ class FinanceDBUpdater:
     2. 从外部源(Wind)获取增量数据，丰富（Enrich）数据库中的已有记录。
     """
 
-    def __init__(self, db_path: str, block: BlockItem):
+    def __init__(self, db_path: str, parent_block_name: str):
         """
         为指定的数据库文件初始化更新器。
 
@@ -29,7 +27,7 @@ class FinanceDBUpdater:
         if not os.path.exists(db_path):
             raise FileNotFoundError(f"数据库文件不存在: {db_path}")
         self.db_path = db_path
-        self.block = block
+        self.parent_block_name = parent_block_name
         self.conn = sqlite3.connect(db_path)
         self.cursor = self.conn.cursor()
         self.cursor.execute("PRAGMA journal_mode=OFF;")
@@ -53,8 +51,13 @@ class FinanceDBUpdater:
         self.cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")
         table_names = [row[0] for row in self.cursor.fetchall()]
 
-        # 为了从 'NVDAO' 准确地还原回 'NVDA.O'，我们依赖 block_cache
-        all_stocks_in_block = block_cache.get_stock_codes(self.block.id).codes
+        # 获取父板块下所有子板块，并汇总它们的股票代码
+        all_stocks_in_block = []
+        sub_items = Block.get_items_by_parent(self.parent_block_name)
+        if sub_items:
+            for item in sub_items.values():
+                all_stocks_in_block.extend(Block.get_stock_codes(item.id))
+
         stock_map = {self._get_table_name(code): code for code in all_stocks_in_block}
 
         return [stock_map[tn] for tn in table_names if tn in stock_map]
@@ -83,6 +86,15 @@ class FinanceDBUpdater:
         table_name = self._get_table_name(stock_code)
         # 1. 确保所有列都存在（新增的列初始化为NULL）
         self.add_columns_to_stock(stock_code, {name: 'REAL' for name in indicators})
+
+        # 根据 stock_code 在指定的父板块下找到它对应的具体板块ID
+        found_blocks = Block.find_blocks_by_stock(stock_code, parent_block_name=self.parent_block_name)
+        if not found_blocks:
+            print(f"    [警告] 无法在父板块 '{self.parent_block_name}' 下找到 {stock_code} 所属板块，跳过 enrichment。")
+            return
+
+        # 取第一个找到的板块作为该股票的归属板块
+        specific_block_id = found_blocks[0].id
 
         # 2. 获取所有需要的列（id 和日期范围是必须的）
         cols_to_select = ['"id"', '"报告期"', '"统计开始日"', '"统计结束日"'] + [f'"{ind}"' for ind in indicators]
@@ -131,7 +143,7 @@ class FinanceDBUpdater:
                 }
 
                 # 4. 抓取数据
-                update_data = wd.fetch_data_from_wind(stock_code=stock_code, block_code=self.block.id,
+                update_data = wd.fetch_data_from_wind(stock_code=stock_code, block_code=specific_block_id,
                                                       features_cn=missing_cols, context=context)
 
                 if not update_data:
@@ -183,6 +195,84 @@ class FinanceDBUpdater:
 
 
 # ==============================================================================
+# =====                    工具函数函数                      =====
+# ==============================================================================
+
+
+def reorder_table_columns(conn: sqlite3.Connection, table_name: str, desired_order: List[str]):
+    """
+    将指定表的列顺序调整为 desired_order。
+    注意：
+    1. 未出现在 desired_order 的列会排在最后，保持原有顺序。
+    2. 此方法会重建表，但不会保留外键、索引（主键索引除外）或触发器。
+    """
+    cursor = conn.cursor()
+
+    # --- 1. 获取原始列信息和主键信息 ---
+    cursor.execute(f'PRAGMA table_info("{table_name}")')
+    columns_info = cursor.fetchall()
+    # columns_info 格式: (cid, name, type, notnull, dflt_value, pk)
+
+    orig_cols = [row[1] for row in columns_info]
+
+    # --- 2. 计算最终的列顺序 ---
+    ordered_cols = [c for c in desired_order if c in orig_cols]
+    remaining_cols = [c for c in orig_cols if c not in desired_order]
+    final_cols = ordered_cols + remaining_cols
+
+    if final_cols == orig_cols:
+        print(f"[跳过] {table_name} 表头已是目标顺序")
+        return
+
+    print(f"[整理表头] {table_name}: {orig_cols} -> {final_cols}")
+
+    try:
+        # --- 3. 完整地重建列定义（关键修正点） ---
+        col_defs_map = {}
+        for info in columns_info:
+            _, name, type, notnull, dflt_value, pk = info
+            definition = [f'"{name}"', type]
+            if notnull:
+                definition.append("NOT NULL")
+            if dflt_value is not None:
+                definition.append(f"DEFAULT {dflt_value}")
+            if pk:
+                # 注意：这里只处理了单列主键，没有处理复合主键
+                definition.append("PRIMARY KEY")
+            col_defs_map[name] = " ".join(definition)
+
+        # --- 4. 构建新的 CREATE TABLE 语句 ---
+        final_col_definitions = [col_defs_map[c] for c in final_cols]
+
+        create_sql = f'CREATE TABLE "{table_name}_new" ({", ".join(final_col_definitions)})'
+
+        # --- 5. 执行数据库操作（创建新表、迁移数据、替换表）---
+        # 开启事务
+        cursor.execute("BEGIN TRANSACTION;")
+
+        # 创建新表
+        cursor.execute(create_sql)
+
+        # 迁移数据
+        col_expr = ", ".join(f'"{c}"' for c in final_cols)
+        cursor.execute(f'INSERT INTO "{table_name}_new" ({col_expr}) SELECT {col_expr} FROM "{table_name}"')
+
+        # 删除旧表
+        cursor.execute(f'DROP TABLE "{table_name}"')
+
+        # 重命名新表
+        cursor.execute(f'ALTER TABLE "{table_name}_new" RENAME TO "{table_name}"')
+
+        # 提交事务
+        conn.commit()
+        print(f"[成功] {table_name} 表头整理完成")
+
+    except Exception as e:
+        print(f"[错误] 处理表 {table_name} 时发生错误: {e}")
+        conn.rollback()  # 如果出错，回滚所有操作
+
+
+# ==============================================================================
 # =====                    高级工作流函数 (业务逻辑层)                       =====
 # ==============================================================================
 
@@ -202,7 +292,11 @@ def run_initial_data_population(parent_block_name: str, db_root_dir: str):
     print("=" * 20 + " 工作流: [1] 初始数据填充完成 " + "=" * 20 + "\n")
 
 
-def run_add_new_features(db_root_dir: str, new_features: List[str]):
+def run_add_new_features(
+    db_root_dir: str,
+    new_features: List[str],
+    parent_block_name: str,
+):
     """高级工作流：扫描指定目录下的所有数据库文件，并用新特征丰富它们。"""
     print("=" * 20 + " 工作流: [2] 数据库特征丰富 " + "=" * 20)
     db_files = glob.glob(os.path.join(os.path.dirname(__file__), db_root_dir, '*.db'))
@@ -215,18 +309,20 @@ def run_add_new_features(db_root_dir: str, new_features: List[str]):
         return
 
     for db_path in db_files:
-        block_name = os.path.basename(db_path).replace('.db', '')
-        block_item = Block.get(block_name)
-        if block_item:
-            # 使用 FinanceDBUpdater 来执行数据更新和丰富
-            updater = FinanceDBUpdater(db_path=db_path, block=block_item)
-            updater.enrich_block_with_features(indicators=new_features)
-        else:
-            print(f"[警告] 跳过 '{db_path}', 因为找不到名为 '{block_name}' 的板块定义。")
+        updater = FinanceDBUpdater(db_path=db_path, parent_block_name=parent_block_name)
+        # 注意: 这里的 enrich_block_with_features 应该作用于整个数据库文件
+        # 它内部会自己遍历库里的股票
+        stock_codes_in_db = updater.get_all_stock_codes_in_db()
+        for stock_code in stock_codes_in_db:
+            updater.enrich_stock_with_features(stock_code, indicators=new_features)
     print("=" * 20 + " 工作流: [2] 数据库特征丰富完成 " + "=" * 20 + "\n")
 
 
-def run_drop_features(db_root_dir: str, drop_columns: List[str]):
+def run_drop_features(
+    db_root_dir: str,
+    drop_columns: List[str],
+    parent_block_name: str,
+):
     """高级工作流：扫描指定目录下的所有数据库文件，并删除指定的列。"""
     print("=" * 20 + " 工作流: [3] 删除列 " + "=" * 20)
     db_files = glob.glob(os.path.join(os.path.dirname(__file__), db_root_dir, '*.db'))
@@ -235,13 +331,8 @@ def run_drop_features(db_root_dir: str, drop_columns: List[str]):
         return
 
     for db_path in db_files:
-        block_name = os.path.basename(db_path).replace('.db', '')
-        block_item = Block.get(block_name)
-        if block_item:
-            updater = FinanceDBUpdater(db_path=db_path, block=block_item)
-            updater.drop_columns_from_block(drop_columns=drop_columns)
-        else:
-            print(f"[警告] 跳过 '{db_path}', 因为找不到名为 '{block_name}' 的板块定义。")
+        updater = FinanceDBUpdater(db_path=db_path, parent_block_name=parent_block_name)
+        updater.drop_columns_from_block(drop_columns=drop_columns)
     print("=" * 20 + " 工作流: [3] 删除列完成 " + "=" * 20 + "\n")
 
 
@@ -301,6 +392,37 @@ def run_statistics(db_root_dir: str):
     print("=" * 20 + " 工作流: [4] 数据库统计汇总完成 " + "=" * 20 + "\n")
 
 
+def run_reorder_headers(db_root_dir: str, desired_order: List[str]):
+    """
+    高级工作流：整理指定目录下所有数据库文件的所有表格的表头顺序。
+    """
+    print("=" * 20 + " 工作流: [5] 整理表头顺序 " + "=" * 20)
+    db_files = glob.glob(os.path.join(os.path.dirname(__file__), db_root_dir, '*.db'))
+    if not db_files:
+        print(f"在目录 '{db_root_dir}' 中未找到任何.db数据库文件。")
+        return
+
+    for db_path in db_files:
+        print(f"\n>>> 处理数据库: {os.path.basename(db_path)}")
+        conn = None
+        try:
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")
+            table_names = [row[0] for row in cursor.fetchall()]
+
+            for table_name in table_names:
+                reorder_table_columns(conn, table_name, desired_order)
+
+        except sqlite3.Error as e:
+            print(f"处理数据库 {db_path} 时发生 SQLite 错误: {e}")
+        finally:
+            if conn:
+                conn.close()
+
+    print("=" * 20 + " 工作流: [5] 整理表头顺序完成 " + "=" * 20 + "\n")
+
+
 # ==============================================================================
 # =====                         程序执行入口                               =====
 # ==============================================================================
@@ -308,7 +430,7 @@ def run_statistics(db_root_dir: str):
 if __name__ == "__main__":
 
     # --- 配置区 ---
-    # 选择要运行的工作流: 1: 从wind里抓取数据 2: 新增列 3: 删除列 4: 统计
+    # 选择要运行的工作流: 1: 从wind里抓取数据 2: 新增列 3: 删除列 4: 统计 5：整理表头
     WORKFLOW_TO_RUN = 2
 
     PARENT_BLOCK = "SP500_WIND行业类"
@@ -316,16 +438,35 @@ if __name__ == "__main__":
 
     # --- 执行区 ---
     if WORKFLOW_TO_RUN == 1:
-        run_initial_data_population(parent_block_name=PARENT_BLOCK, db_root_dir=DB_DIRECTORY)
+        run_initial_data_population(
+            parent_block_name=PARENT_BLOCK,
+            db_root_dir=DB_DIRECTORY,
+        )
 
     elif WORKFLOW_TO_RUN == 2:
-        run_add_new_features(db_root_dir=DB_DIRECTORY, new_features=["板块PCF"])
+        run_add_new_features(
+            db_root_dir=DB_DIRECTORY,
+            new_features=["板块PE", "板块PB", "板块PS", "板块PCF"],
+            parent_block_name=PARENT_BLOCK,
+        )
 
     elif WORKFLOW_TO_RUN == 3:
-        run_drop_features(db_root_dir=DB_DIRECTORY, drop_columns=["板块PCF"])
+        run_drop_features(
+            db_root_dir=DB_DIRECTORY,
+            drop_columns=["板块PE", "板块PB", "板块PS", "板块PCF"],
+            parent_block_name=PARENT_BLOCK,
+        )
 
     elif WORKFLOW_TO_RUN == 4:
         run_statistics(db_root_dir=DB_DIRECTORY)
 
+    elif WORKFLOW_TO_RUN == 5:
+        # 指定目标列顺序
+        DESIRED_ORDER = ["id", "报告期", "统计开始日", "统计结束日"]
+        run_reorder_headers(
+            db_root_dir=DB_DIRECTORY,
+            desired_order=DESIRED_ORDER,
+        )
+
     else:
-        print("无效的 WORKFLOW_TO_RUN 值。请输入 1, 2, 3 或 4。")
+        print("无效的 WORKFLOW_TO_RUN 值。请输入 1, 2, 3, 4, 5")

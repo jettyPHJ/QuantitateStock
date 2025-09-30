@@ -4,7 +4,7 @@ import time
 import math
 from typing import List, Dict, Any, Protocol
 import utils.feature as ft
-from utils.block import Block
+from data_source.finance.script.block import Block
 from utils.prompt import PriceChangeRecord
 
 w.start()

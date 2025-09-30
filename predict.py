@@ -5,7 +5,7 @@ import os
 import numpy as np
 from data_process.data_set import SingleStockDataset, collate_fn
 from model import MambaModel, LSTMAttentionModel
-from utils.block import Block
+from data_source.finance.script.block import Block
 
 
 def run_prediction(model_cls, stock_code, block_code, use_finetune_weights=True):

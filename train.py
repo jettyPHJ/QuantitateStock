@@ -7,7 +7,7 @@ import random
 import os
 from model import MambaModel, LSTMAttentionModel
 import utils.plot as pl
-from utils.block import Block
+from data_source.finance.script.block import Block
 from data_process.data_set import FinancialDataset, collate_fn
 
 batch_size = 64

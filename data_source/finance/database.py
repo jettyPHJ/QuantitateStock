@@ -1,8 +1,7 @@
 import sqlite3
 import os
 import data_source.finance.script.wind as wd
-from utils.block import Block, BlockItem
-from data_source.finance.script.block_map import block_cache
+from data_source.finance.script.block import Block, BlockItem
 
 
 class FinanceDBManager:
@@ -107,7 +106,7 @@ class FinanceDBManager:
         当update为false时只从数据库中获取
         """
         result = {}
-        stock_codes = block_cache.get_stock_codes(self.block.id).codes
+        stock_codes = Block.get_stock_codes(self.block.id)
         print(f"[Info] 开始处理板块（{self.block.name_cn}）下共 {len(stock_codes)} 支股票")
 
         for stock_code in stock_codes:
@@ -146,14 +145,3 @@ class FinanceDBManager:
 if __name__ == "__main__":
     parent_block = "SP500_WIND行业类"
     db_dir = "db/SP500_WIND行业类"
-    sub_items = Block.get_items_by_parent(parent_block)
-    if sub_items:
-        for name, item in sub_items.items():
-            stocks = block_cache.get_stock_codes(item.id).codes
-            if len(stocks) == 0:
-                continue
-            db = FinanceDBManager(block=item, db_dir=db_dir)
-            db.fetch_block_data(update=True)
-            # db.fetch_stock_data(stock_code="NVDA.O")
-    else:
-        print("没有找到任何子项目")
