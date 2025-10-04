@@ -60,7 +60,23 @@ class FinanceDBUpdater:
 
         stock_map = {self._get_table_name(code): code for code in all_stocks_in_block}
 
-        return [stock_map[tn] for tn in table_names if tn in stock_map]
+        found_stocks = []
+        not_found = []
+
+        for tn in table_names:
+            if tn in stock_map:
+                found_stocks.append(stock_map[tn])
+            else:
+                not_found.append(tn)
+
+        # 打印未找到的表名
+        if not_found:
+            print(
+                f"[警告] 数据库中有 {len(not_found)}/{len(table_names)} ({len(not_found)/len(table_names):.2%}) 的表没有找到对应板块股票:")
+            for nf in not_found:
+                print(f"  - {nf}")
+
+        return found_stocks
 
     def add_columns_to_stock(self, stock_code: str, new_columns: Dict[str, str]) -> List[str]:
         """为单个股票表安全地添加新列，返回实际新增的列名"""
@@ -423,6 +439,109 @@ def run_reorder_headers(db_root_dir: str, desired_order: List[str]):
     print("=" * 20 + " 工作流: [5] 整理表头顺序完成 " + "=" * 20 + "\n")
 
 
+def check_table_headers(db_root_dir: str, desired_order: List[str]):
+    """
+    检查指定目录下所有数据库文件的表格表头是否与 desired_order 完全一致，
+    如果不一致则输出数据库名、表名和当前列。
+    """
+    print("=" * 20 + " 工作流: 检查表头一致性 " + "=" * 20)
+
+    db_files = glob.glob(os.path.join(os.path.dirname(__file__), db_root_dir, '*.db'))
+    if not db_files:
+        print(f"在目录 '{db_root_dir}' 中未找到任何.db数据库文件。")
+        return
+
+    inconsistent_tables = []
+
+    for db_path in db_files:
+        conn = None
+        try:
+            conn = sqlite3.connect(db_path)
+            cursor = conn.cursor()
+            cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")
+            table_names = [row[0] for row in cursor.fetchall()]
+
+            for table_name in table_names:
+                cursor.execute(f'PRAGMA table_info("{table_name}")')
+                columns = [row[1] for row in cursor.fetchall()]
+
+                if columns != desired_order:
+                    inconsistent_tables.append(
+                        {"db": os.path.basename(db_path), "table": table_name, "current_order": columns})
+
+        except sqlite3.Error as e:
+            print(f"[错误] 处理数据库 {db_path} 时发生 SQLite 错误: {e}")
+        finally:
+            if conn:
+                conn.close()
+
+    # 输出结果
+    if inconsistent_tables:
+        print("\n以下数据库表的列顺序或缺失与目标不一致：")
+        for info in inconsistent_tables:
+            print(f"数据库: {info['db']}, 表: {info['table']}")
+            print(f"  当前列: {info['current_order']}")
+            print(f"  目标列: {desired_order}\n")
+    else:
+        print("所有表的列顺序与目标一致。")
+
+    print("=" * 20 + " 工作流: 检查完成 " + "=" * 20 + "\n")
+
+
+def clean_tables_by_missing_rate(db_root_dir: str, threshold: float):
+    """
+    高级工作流：删除缺失率超过指定阈值的表
+    参数:
+        db_root_dir: 数据库目录
+        threshold: 缺失率阈值 (0~1之间的小数)，例如0.5表示50%
+    """
+    print("=" * 20 + " 工作流: [5] 删除缺失率过高的表 " + "=" * 20)
+
+    db_files = glob.glob(os.path.join(os.path.dirname(__file__), db_root_dir, '*.db'))
+    if not db_files:
+        print(f"在目录 '{db_root_dir}' 中未找到任何.db数据库文件。")
+        return
+
+    for db_path in db_files:
+        conn = sqlite3.connect(db_path)
+        cursor = conn.cursor()
+        print(f"\n检查数据库: {db_path}")
+
+        # 获取所有用户表
+        cursor.execute("SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'")
+        table_names = [row[0] for row in cursor.fetchall()]
+
+        for table_name in table_names:
+            cursor.execute(f'SELECT COUNT(*) FROM "{table_name}"')
+            total_rows = cursor.fetchone()[0]
+            if total_rows == 0:
+                print(f"表 {table_name} 无数据，跳过。")
+                continue
+
+            cursor.execute(f'PRAGMA table_info("{table_name}")')
+            columns = [row[1] for row in cursor.fetchall()]
+            table_should_drop = False
+
+            for col in columns:
+                cursor.execute(f'SELECT COUNT(*) FROM "{table_name}" WHERE "{col}" IS NOT NULL AND TRIM("{col}") <> ""')
+                valid_count = cursor.fetchone()[0]
+                missing_rate = (total_rows - valid_count) / total_rows
+
+                if missing_rate > threshold:
+                    print(f"表 {table_name} 的列 {col} 缺失率 {missing_rate:.2%} 超过阈值 {threshold:.2%} → 将删除该表")
+                    table_should_drop = True
+                    break  # 一旦有列超标，就删除整张表
+
+            if table_should_drop:
+                cursor.execute(f'DROP TABLE "{table_name}"')
+                print(f"已删除表 {table_name}")
+
+        conn.commit()
+        conn.close()
+
+    print("=" * 20 + " 工作流: [5] 删除缺失率过高的表完成 " + "=" * 20 + "\n")
+
+
 # ==============================================================================
 # =====                         程序执行入口                               =====
 # ==============================================================================
@@ -430,8 +549,10 @@ def run_reorder_headers(db_root_dir: str, desired_order: List[str]):
 if __name__ == "__main__":
 
     # --- 配置区 ---
-    # 选择要运行的工作流: 1: 从wind里抓取数据 2: 新增列 3: 删除列 4: 统计 5：整理表头
-    WORKFLOW_TO_RUN = 2
+    # 选择要运行的工作流:
+    # 1: 从wind里抓取数据 2: 新增列 3: 删除列 4: 统计数据缺失率
+    # 5：整理表头 6：检查数据库是否统一 7: 删除数据库中缺失率高的表
+    WORKFLOW_TO_RUN = 4
 
     PARENT_BLOCK = "SP500_WIND行业类"
     DB_DIRECTORY = f"db/测试"
@@ -461,12 +582,24 @@ if __name__ == "__main__":
         run_statistics(db_root_dir=DB_DIRECTORY)
 
     elif WORKFLOW_TO_RUN == 5:
-        # 指定目标列顺序
         DESIRED_ORDER = ["id", "报告期", "统计开始日", "统计结束日"]
         run_reorder_headers(
             db_root_dir=DB_DIRECTORY,
             desired_order=DESIRED_ORDER,
         )
 
+    elif WORKFLOW_TO_RUN == 6:
+        DESIRED_ORDER = ["id", "报告期", "统计开始日", "统计结束日"]
+        check_table_headers(
+            db_root_dir=DB_DIRECTORY,
+            desired_order=DESIRED_ORDER,
+        )
+
+    elif WORKFLOW_TO_RUN == 7:
+        clean_tables_by_missing_rate(
+            db_root_dir=DB_DIRECTORY,
+            threshold=0.8,
+        )
+
     else:
-        print("无效的 WORKFLOW_TO_RUN 值。请输入 1, 2, 3, 4, 5")
+        print("无效的 WORKFLOW_TO_RUN 值。请输入 1, 2, 3, 4, 5, 6, 7")

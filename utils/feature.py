@@ -101,16 +101,16 @@ FEATURE_META: Dict[str, FeatureConfig] = {
                              wind_params={"startDate": "", "endDate": "", "DynamicTime": "0"}),
     "板块PE": FeatureConfig(True, ScalingMethod.CLIP, "板块", clip_scale=1000.0, wind_api="wsee",
                           wind_field="sec_pe_media_chn",
-                          wind_params={"tradeDate": "", "ruleType": "8", "excludeRule": "2", "DynamicTime": "0"}),
+                          wind_params={"tradeDate": "", "ruleType": "10", "excludeRule": "2", "DynamicTime": "0"}),
     "板块PB": FeatureConfig(True, ScalingMethod.CLIP, "板块", clip_scale=1000.0, wind_api="wsee",
                           wind_field="sec_pb_media_chn",
-                          wind_params={"tradeDate": "", "ruleType": "8", "excludeRule": "2", "DynamicTime": "0"}),
+                          wind_params={"tradeDate": "", "ruleType": "10", "excludeRule": "2", "DynamicTime": "0"}),
     "板块PS": FeatureConfig(True, ScalingMethod.CLIP, "板块", clip_scale=1000.0, wind_api="wsee",
                           wind_field="sec_ps_media_chn",
-                          wind_params={"tradeDate": "", "ruleType": "8", "excludeRule": "2", "DynamicTime": "0"}),
+                          wind_params={"tradeDate": "", "ruleType": "10", "excludeRule": "2", "DynamicTime": "0"}),
     "板块PCF": FeatureConfig(True, ScalingMethod.CLIP, "板块", clip_scale=1000.0, wind_api="wsee",
                            wind_field="sec_pcf_media_chn",
-                           wind_params={"tradeDate": "", "ruleType": "8", "excludeRule": "2", "DynamicTime": "0"}),
+                           wind_params={"tradeDate": "", "ruleType": "10", "excludeRule": "2", "DynamicTime": "0"}),
 }
 
 # ------------------------- 4. 核心工具函数 -------------------------
