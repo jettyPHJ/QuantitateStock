@@ -51,53 +51,52 @@ class BaseFinancialDataset:
     def _build_samples_from_df(self, df: pd.DataFrame, feature_columns: list[str],
                                allow_last_nan: bool = False) -> list:
         """
-        构建滑动窗口样本，归一化采用历史累计数据。
-        allow_last_nan用于预测脚本，允许最后一行数据中存在 NaN 值。
+        构建滑动窗口样本。
+        修正后的逻辑：先对每支股票的整个时间序列特征进行归一化，然后再切分窗口。
+        这保证了数据处理的一致性，并避免了前视偏差。
         """
         df = df.sort_values(by=self.sort_column).reset_index(drop=True)
+
+        # 强制转换所有特征列为数值类型，处理非数值数据
         for col in feature_columns:
             df[col] = pd.to_numeric(df[col], errors='coerce')
 
+        # 步骤1: 先对整个DataFrame的特征列进行归一化
+        norm_df = df.copy()
+        for col in feature_columns:
+            series = df[col]  # 此处 series 已经是数值类型或NaN
+            # 如果一整列都是NaN，就保持原样
+            if series.isna().all():
+                norm_df[col] = series.values
+            else:
+                # 对整列（完整的历史）进行归一化
+                norm_df[col] = self._scaling(series.values, FEATURE_META[col])
+
         samples = []
 
-        def _build_one_sample(i):
-            hist_df = df.iloc[:i]
-            window_df = df.iloc[i - self.sample_len:i]
-
-            norm_features, origin_features = [], []
-
-            for col in feature_columns:
-                hist_series = hist_df[col].values
-                window_series = window_df[col].values
-                normed = self._scaling(hist_series, FEATURE_META[col])[-self.sample_len:]
-
-                if len(normed) != self.sample_len:
-                    normed = np.full(self.sample_len, np.nan)
-                if len(window_series) != self.sample_len:
-                    window_series = np.full(self.sample_len, np.nan)
-
-                norm_features.append(normed)
-                origin_features.append(window_series)
-
-            feature_matrix = np.stack(norm_features, axis=-1)
-            origin_matrix = np.stack(origin_features, axis=-1)
-
-            return origin_matrix, feature_matrix
-
-        # 主循环构造正常样本
+        # 步骤2: 主循环，直接从归一化好的 norm_df 中切分窗口
         for i in range(self.sample_len, len(df)):
-            origin_matrix, feature_matrix = _build_one_sample(i)
 
+            # 从预先归一化好的DataFrame中切片，作为模型的输入特征
+            feature_matrix = norm_df.iloc[i - self.sample_len:i][feature_columns].values
+
+            # 从已经清洗过的原始DataFrame中切片
+            origin_matrix = df.iloc[i - self.sample_len:i][feature_columns].values
+
+            # 计算目标值 (Target)
             target_val = (df.iloc[i][self.target_column] -
                           df.iloc[i - 1][self.target_column]) / df.iloc[i - 1][self.target_column]
-            if pd.isna(target_val):
+
+            # 检查目标值是否有效
+            if pd.isna(target_val) or np.isinf(target_val):
                 continue
 
             samples.append((origin_matrix, feature_matrix, target_val))
 
-        # 最后一个样本（预测用，无 target）
+        # 步骤3: 处理最后一个样本用于预测
         if allow_last_nan and len(df) >= self.sample_len:
-            origin_matrix, feature_matrix = _build_one_sample(len(df))
+            feature_matrix = norm_df.iloc[len(df) - self.sample_len:len(df)][feature_columns].values
+            origin_matrix = df.iloc[len(df) - self.sample_len:len(df)][feature_columns].values
             samples.append((origin_matrix, feature_matrix, None))
 
         return samples
@@ -145,14 +144,25 @@ class FinancialDataset(BaseFinancialDataset, Dataset):
                 self.samples_by_company[stock_code] = samples
 
     def build_datasets(self, train_ratio=0.85):
+        train_samples = []
+        val_samples = []
+
+        # 遍历每支股票，对其时间序列进行划分
+        for _, samples in self.samples_by_company.items():
+            if not samples:
+                continue
+
+            # 按时间顺序划分样本
+            split_index = int(len(samples) * train_ratio)
+            if split_index > 0:
+                train_samples.extend(samples[:split_index])
+            if split_index < len(samples):
+                val_samples.extend(samples[split_index:])
+
+        # （可选）可以打乱划分好的训练集，这有助于训练
         np.random.seed(27)
-        all_stocks = list(self.samples_by_company.keys())
-        np.random.shuffle(all_stocks)
-        split = int(len(all_stocks) * train_ratio)
-        train_stocks = all_stocks[:split]
-        val_stocks = all_stocks[split:]
-        train_samples = [s for stock in train_stocks for s in self.samples_by_company[stock]]
-        val_samples = [s for stock in val_stocks for s in self.samples_by_company[stock]]
+        np.random.shuffle(train_samples)
+
         return TorchFinancialDataset(train_samples), TorchFinancialDataset(val_samples)
 
 

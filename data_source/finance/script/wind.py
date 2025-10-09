@@ -10,7 +10,7 @@ from utils.prompt import PriceChangeRecord
 w.start()
 
 # 数据提取起始时间
-start_point = "2024-06-01"
+start_point = "2005-01-01"
 
 
 class WindData(Protocol):

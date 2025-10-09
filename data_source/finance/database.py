@@ -6,7 +6,7 @@ from data_source.finance.script.block import Block, BlockItem
 
 class FinanceDBManager:
 
-    def __init__(self, block: BlockItem, db_dir="db"):
+    def __init__(self, block: BlockItem, db_dir="clean_data"):
         self.block = block
         db_file = f"{self.block.name_cn}.db"
         self.db_path = os.path.join(os.path.dirname(__file__), db_dir, db_file)
