@@ -36,7 +36,8 @@ class MultiHeadTemporalPooling(nn.Module):
 
 class LSTMAttentionModel(nn.Module):
 
-    def __init__(self, input_dim=8, d_model=64, num_layers=1, bidirectional=False, num_attn_heads=4):
+    # --- 修改点 1: 将 d_model 设为 24（12可能过小），并增加 dropout_rate 参数 ---
+    def __init__(self, input_dim, d_model=24, num_layers=1, bidirectional=False, num_attn_heads=4, dropout_rate=0.5):
         super().__init__()
         self.input_dim = input_dim
         self.d_model = d_model
@@ -48,10 +49,19 @@ class LSTMAttentionModel(nn.Module):
         self.lstm = nn.LSTM(input_size=d_model, hidden_size=self.hidden_dim, num_layers=num_layers, batch_first=True,
                             bidirectional=bidirectional)
 
+        # --- 修改点 2: 增加一个贯穿始终的 Dropout 层 ---
+        self.dropout = nn.Dropout(dropout_rate)
+
         self.pooling = MultiHeadTemporalPooling(d_model=d_model, num_heads=num_attn_heads)
 
-        self.output_layer = nn.Sequential(nn.Linear(d_model, d_model // 2), nn.ReLU(), nn.Dropout(0.1),
-                                          nn.Linear(d_model // 2, 1), nn.Tanh())
+        # --- 修改点 3: 增强输出层的 Dropout 并移除 Tanh ---
+        self.output_layer = nn.Sequential(
+            nn.Linear(d_model, d_model // 2),
+            nn.ReLU(),
+            nn.Dropout(dropout_rate),  # 使用统一的、更高的 dropout_rate
+            nn.Linear(d_model // 2, 1)
+            # nn.Tanh()  # <--- (可选，建议移除)
+        )
 
     def forward(self, origins, features):
         """
@@ -60,6 +70,10 @@ class LSTMAttentionModel(nn.Module):
         """
         x_embed = self.input_embedding(features)  # (B, T, D)
         lstm_out, _ = self.lstm(x_embed)  # (B, T, D)
+
+        # --- 修改点 4: 在 LSTM 和 Pooling 层之间应用 Dropout ---
+        lstm_out = self.dropout(lstm_out)
+
         pooled = self.pooling(lstm_out)  # (B, D)
         output = self.output_layer(pooled)  # (B, 1)
         return output

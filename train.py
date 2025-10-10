@@ -13,9 +13,9 @@ from data_process.data_set import FinancialDataset, collate_fn
 batch_size = 64
 
 # 设置随机种子
-torch.manual_seed(42)
-np.random.seed(42)
-random.seed(42)
+torch.manual_seed(40)
+np.random.seed(40)
+random.seed(40)
 
 
 def train_model(model: nn.Module, database: FinancialDataset, finetune_flag: bool = False, device=None):

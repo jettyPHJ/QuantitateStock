@@ -82,14 +82,14 @@ FEATURE_META: Dict[str, FeatureConfig] = {
                           wind_params={"startDate": "", "endDate": ""}),
     "区间日均换手率": FeatureConfig(True, ScalingMethod.LOG_ZSCORE, "股市", wind_api="wss", wind_field="avg_turn_per",
                              wind_params={"startDate": "", "endDate": ""}),
-    "区间平均PE": FeatureConfig(False, ScalingMethod.ZSCORE, "股市", wind_api="wss", wind_field="val_pettm_avg",
+    "区间平均PE": FeatureConfig(True, ScalingMethod.ZSCORE, "股市", wind_api="wss", wind_field="val_pettm_avg",
                             wind_params={"startDate": "", "endDate": ""}),
-    "区间平均PB": FeatureConfig(False, ScalingMethod.LOG_ZSCORE, "股市", wind_api="wss", wind_field="val_pb_avg",
+    "区间平均PB": FeatureConfig(True, ScalingMethod.LOG_ZSCORE, "股市", wind_api="wss", wind_field="val_pb_avg",
                             wind_params={"startDate": "", "endDate": ""}),
-    "区间平均PS": FeatureConfig(False, ScalingMethod.LOG_ZSCORE, "股市", wind_api="wss", wind_field="val_psttm_avg",
+    "区间平均PS": FeatureConfig(True, ScalingMethod.LOG_ZSCORE, "股市", wind_api="wss", wind_field="val_psttm_avg",
                             wind_params={"startDate": "", "endDate": ""}),
-    "市现率PCF": FeatureConfig(False, ScalingMethod.ZSCORE, "股市", clip_scale=1000, wind_api="wss",
-                            wind_field="pcf_ocf_ttm", wind_params={"tradeDate": ""}),
+    "市现率PCF": FeatureConfig(True, ScalingMethod.ZSCORE, "股市", wind_api="wss", wind_field="pcf_ocf_ttm",
+                            wind_params={"tradeDate": ""}),
 
     # ----------------------板块比例 (wsee - 获取板块历史估值)--------------------------------
     "板块涨跌幅": FeatureConfig(True, ScalingMethod.ZSCORE, "板块", wind_api="wsee", wind_field="sec_pq_pct_chg_tmc_wavg",
@@ -102,8 +102,7 @@ FEATURE_META: Dict[str, FeatureConfig] = {
                           wind_params={"tradeDate": "", "ruleType": "10", "excludeRule": "2", "DynamicTime": "0"}),
     "板块PS": FeatureConfig(True, ScalingMethod.LOG_ZSCORE, "板块", wind_api="wsee", wind_field="sec_ps_media_chn",
                           wind_params={"tradeDate": "", "ruleType": "10", "excludeRule": "2", "DynamicTime": "0"}),
-    "板块PCF": FeatureConfig(True, ScalingMethod.ZSCORE, "板块", clip_scale=1000, wind_api="wsee",
-                           wind_field="sec_pcf_media_chn",
+    "板块PCF": FeatureConfig(True, ScalingMethod.ZSCORE, "板块", wind_api="wsee", wind_field="sec_pcf_media_chn",
                            wind_params={"tradeDate": "", "ruleType": "10", "excludeRule": "2", "DynamicTime": "0"}),
 }
 
