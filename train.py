@@ -13,9 +13,9 @@ from data_process.data_set import FinancialDataset, collate_fn
 batch_size = 64
 
 # 设置随机种子
-torch.manual_seed(40)
-np.random.seed(40)
-random.seed(40)
+torch.manual_seed(48)
+np.random.seed(48)
+random.seed(48)
 
 
 def train_model(model: nn.Module, database: FinancialDataset, finetune_flag: bool = False, device=None):
@@ -57,26 +57,27 @@ def train_model(model: nn.Module, database: FinancialDataset, finetune_flag: boo
         file_name, loss_name = 'model_finetune.pth', 'loss_finetune.png'
 
     for epoch in range(100):
-        if epoch != 0:
-            model.train()
-            train_loss = 0
-            for origins, batch_features, batch_targets in train_loader:
-                origins = [o.to(device) for o in origins]
-                batch_features = batch_features.to(device)
-                batch_targets = batch_targets.to(device)
+        model.train()
+        train_loss = 0
 
+        # epoch 0 计算 loss，但不训练
+        for origins, batch_features, batch_targets in train_loader:
+            origins = [o.to(device) for o in origins]
+            batch_features = batch_features.to(device)
+            batch_targets = batch_targets.to(device)
+
+            outputs = model(origins, batch_features).squeeze(-1)
+            loss = criterion(outputs, batch_targets)
+            train_loss += loss.item()
+
+            if epoch != 0:
                 optimizer.zero_grad()
-                outputs = model(origins, batch_features).squeeze(-1)
-                loss = criterion(outputs, batch_targets)
                 loss.backward()
                 torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm=1.0)
                 optimizer.step()
-                train_loss += loss.item()
 
-            train_loss /= len(train_loader)
-            train_losses.append(train_loss)
-        else:
-            train_loss = float('nan')  # 避免打印时报错
+        train_loss /= len(train_loader)
+        train_losses.append(train_loss)
 
         # 验证阶段
         model.eval()
@@ -168,7 +169,7 @@ def run_experiment(model_cls, pretrain_blocks, finetune_blocks, exclude_stocks=N
 if __name__ == "__main__":
     run_experiment(
         model_cls=LSTMAttentionModel,
-        pretrain_blocks=[Block.get("纳斯达克计算机指数")],
+        pretrain_blocks=[Block.get("标普500指数")],
         finetune_blocks=[Block.get("US_芯片")],
         exclude_stocks=["AMD.O"],
         mode="pretrain"  # 可选: "pretrain", "finetune", "both"

@@ -133,6 +133,6 @@ if __name__ == "__main__":
     run_prediction(
         model_cls=LSTMAttentionModel,
         stock_code="AMD.O",
-        block_code=Block.find_blocks_by_stock("AMD.O", "纳斯达克计算机指数")[0],
+        block_code=Block.find_blocks_by_stock("AMD.O", "标普500指数")[0],
         use_finetune_weights=False  # 切换微调 or 预训练模型
     )

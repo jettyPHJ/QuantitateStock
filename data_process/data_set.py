@@ -136,21 +136,46 @@ class FinancialDataset(BaseFinancialDataset, Dataset):
             if samples:
                 self.samples_by_company[stock_code] = samples
 
-    def build_datasets(self, train_ratio=0.85):
-        train_samples = []
-        val_samples = []
+    def build_datasets(self, train_ratio=0.85, split_method='chronological'):
+        """
+        构建训练和验证数据集。
 
-        # 遍历每支股票，对其时间序列进行划分
-        for _, samples in self.samples_by_company.items():
-            if not samples:
-                continue
+        Args:
+            train_ratio (float): 训练集比例。
+            split_method (str): 'chronological' 或 'random'。
+                - 'chronological': 对每支股票按时间划分，用于真实回测。
+                - 'random': 将所有样本混合后随机划分，用于诊断数据分布问题。
+        """
+        if split_method not in ['chronological', 'random']:
+            raise ValueError("split_method must be 'chronological' or 'random'")
 
-            # 按时间顺序划分样本
-            split_index = int(len(samples) * train_ratio)
-            if split_index > 0:
-                train_samples.extend(samples[:split_index])
-            if split_index < len(samples):
-                val_samples.extend(samples[split_index:])
+        if split_method == 'chronological':
+            train_samples = []
+            val_samples = []
+            # 遍历每支股票，对其时间序列进行划分
+            for _, samples in self.samples_by_company.items():
+                if not samples:
+                    continue
+                split_index = int(len(samples) * train_ratio)
+                if split_index > 0:
+                    train_samples.extend(samples[:split_index])
+                if split_index < len(samples):
+                    val_samples.extend(samples[split_index:])
+
+        else:  # split_method == 'random'
+            # 先将所有公司的所有样本汇集到一个大列表中
+            all_samples = []
+            for _, samples in self.samples_by_company.items():
+                all_samples.extend(samples)
+
+            # 彻底打乱所有样本
+            np.random.seed(27)
+            np.random.shuffle(all_samples)
+
+            # 然后再进行划分
+            split_index = int(len(all_samples) * train_ratio)
+            train_samples = all_samples[:split_index]
+            val_samples = all_samples[split_index:]
 
         # （可选）可以打乱划分好的训练集，这有助于训练
         np.random.seed(27)

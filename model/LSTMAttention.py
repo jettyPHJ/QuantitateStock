@@ -36,8 +36,7 @@ class MultiHeadTemporalPooling(nn.Module):
 
 class LSTMAttentionModel(nn.Module):
 
-    # --- 修改点 1: 将 d_model 设为 24（12可能过小），并增加 dropout_rate 参数 ---
-    def __init__(self, input_dim, d_model=24, num_layers=1, bidirectional=False, num_attn_heads=4, dropout_rate=0.5):
+    def __init__(self, input_dim, d_model=24, num_layers=1, bidirectional=False, num_attn_heads=4, dropout_rate=0.3):
         super().__init__()
         self.input_dim = input_dim
         self.d_model = d_model
