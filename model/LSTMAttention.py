@@ -1,6 +1,6 @@
 import torch
 import torch.nn as nn
-from utils.model_comps import MaskedInputEmbedding
+from utils.model_comps import MaskedInputEmbedding, RegressionOutputLayer
 
 import torch
 import torch.nn as nn
@@ -36,7 +36,7 @@ class MultiHeadTemporalPooling(nn.Module):
 
 class LSTMAttentionModel(nn.Module):
 
-    def __init__(self, input_dim, d_model=24, num_layers=1, bidirectional=False, num_attn_heads=4, dropout_rate=0.3):
+    def __init__(self, input_dim, d_model=32, num_layers=1, bidirectional=False, num_attn_heads=4, dropout_rate=0.3):
         super().__init__()
         self.input_dim = input_dim
         self.d_model = d_model
@@ -53,14 +53,7 @@ class LSTMAttentionModel(nn.Module):
 
         self.pooling = MultiHeadTemporalPooling(d_model=d_model, num_heads=num_attn_heads)
 
-        # --- 修改点 3: 增强输出层的 Dropout 并移除 Tanh ---
-        self.output_layer = nn.Sequential(
-            nn.Linear(d_model, d_model // 2),
-            nn.ReLU(),
-            nn.Dropout(dropout_rate),  # 使用统一的、更高的 dropout_rate
-            nn.Linear(d_model // 2, 1)
-            # nn.Tanh()  # <--- (可选，建议移除)
-        )
+        self.output_head = RegressionOutputLayer(d_model=d_model, dropout_rate=dropout_rate)
 
     def forward(self, origins, features):
         """
@@ -74,5 +67,7 @@ class LSTMAttentionModel(nn.Module):
         lstm_out = self.dropout(lstm_out)
 
         pooled = self.pooling(lstm_out)  # (B, D)
-        output = self.output_layer(pooled)  # (B, 1)
-        return output
+        # output = self.output_layer(pooled)  # (B, 1)
+        # 调用新的输出层会返回4个值
+        pred, probs, mu, sigma = self.output_head(pooled)
+        return pred
