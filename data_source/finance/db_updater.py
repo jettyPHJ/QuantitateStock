@@ -124,43 +124,53 @@ class FinanceDBUpdater:
             return
         print(f"[INFO] 当前处理 {stock_code} 中 {len(rows)} 条记录")
 
+        # 根据本次需要补充的指标(indicators)，预先扫描出所有需要的动态上下文key
+        required_context_keys = set()
+        for feature_name in indicators:
+            # 假设 wd.ft.FEATURE_META 是您的特征配置字典
+            config = wd.ft.FEATURE_META.get(feature_name)
+            if config:
+                for value in config.wind_params.values():
+                    if isinstance(value, str) and value.startswith("$"):
+                        required_context_keys.add(value[1:])
+
         # 3. 遍历行，只补充缺失的列值
         for row in rows:
-            # 将查询结果映射回字典
             row_dict = dict(zip([c.strip('"') for c in list(dict.fromkeys(cols_to_select))], row))
-            row_id, rpt_date, start_day, end_day = row_dict["id"], row_dict["报告期"], row_dict["统计开始日"], row_dict["统计结束日"]
+            row_id, rpt_date_str, start_day_str, end_day_str = row_dict["id"], row_dict["报告期"], row_dict[
+                "统计开始日"], row_dict["统计结束日"]
 
-            # 找出该行缺失的特征列
             missing_cols = [col for col in indicators if row_dict.get(col) is None or row_dict.get(col) == '']
             if not missing_cols:
-                continue  # 这一行特征已经全有了，跳过
+                continue
 
             try:
-                # --- 【关键修改】 ---
-                # 1. 为调用 fetch_data_for_period 准备 context
-                rpt_date = datetime.strptime(rpt_date, "%Y-%m-%d").strftime("%Y%m%d")
-                start_day = datetime.strptime(start_day, "%Y-%m-%d").strftime("%Y%m%d")
-                end_day = datetime.strptime(end_day, "%Y-%m-%d").strftime("%Y%m%d")
+                # 1. 准备基础日期变量
+                rpt_date = datetime.strptime(rpt_date_str, "%Y-%m-%d").strftime("%Y%m%d")
+                start_day = datetime.strptime(start_day_str, "%Y-%m-%d").strftime("%Y%m%d")
+                end_day = datetime.strptime(end_day_str, "%Y-%m-%d").strftime("%Y%m%d")
 
-                # 2. 与代码1逻辑一致，获取区间交易日数
-                wss_trade_days = wd.check_wind_data(
-                    wd.w.wss(stock_code, "trade_days_per", f"startDate={start_day};endDate={end_day}"),
-                    context=f"stock_code:{stock_code}, 获取交易天数 (enrich)")
-                ndays_int = -(wss_trade_days.Data[0][0] if wss_trade_days.Data and wss_trade_days.Data[0] else 63)
-
-                # 3. 构建完整的 context 字典
-                context = {
+                # 2. 构建主上下文
+                master_context = {
                     "rptDate": rpt_date,
-                    "startDate": start_day,
-                    "endDate": end_day,
-                    "ndays": str(ndays_int),
-                    "tradeDate": end_day,
                     "year": rpt_date[:4],
+                    "tradeDate_start": start_day,
+                    "tradeDate_end": end_day,
+                    "startDate_int": start_day,
+                    "endDate_int": end_day,
                 }
 
-                # 4. 抓取数据
+                # 按需计算 ndays，只有在某个特征声明需要 "$ndays" 时才执行
+                if "ndays" in required_context_keys:
+                    wss_trade_days = wd.check_wind_data(
+                        wd.w.wss(stock_code, "trade_days_per", f"startDate={start_day};endDate={end_day}"),
+                        context=f"stock_code:{stock_code}, 获取交易天数 (enrich)")
+                    ndays_val = -(wss_trade_days.Data[0][0] if wss_trade_days.Data and wss_trade_days.Data[0] else 63)
+                    master_context["ndays"] = str(ndays_val)
+
+                # 3. 抓取数据 (传入 master_context)
                 update_data = wd.fetch_data_from_wind(stock_code=stock_code, block_code=specific_block_id,
-                                                      features_cn=missing_cols, context=context)
+                                                      features_cn=missing_cols, context=master_context)
 
                 if not update_data:
                     continue
@@ -552,10 +562,10 @@ if __name__ == "__main__":
     # 选择要运行的工作流:
     # 1: 从wind里抓取数据 2: 新增列 3: 删除列 4: 统计数据缺失率
     # 5：整理表头 6：检查数据库是否统一 7: 删除数据库中缺失率高的表
-    WORKFLOW_TO_RUN = 4
+    WORKFLOW_TO_RUN = 2
 
     PARENT_BLOCK = "SP500_WIND行业类"
-    DB_DIRECTORY = f"db/测试"
+    DB_DIRECTORY = f"db/测试/temp"
 
     # --- 执行区 ---
     if WORKFLOW_TO_RUN == 1:
@@ -564,10 +574,11 @@ if __name__ == "__main__":
             db_root_dir=DB_DIRECTORY,
         )
 
+    # 注意wind_field同名情况，要保证同一时间wind_field不能重名
     elif WORKFLOW_TO_RUN == 2:
         run_add_new_features(
             db_root_dir=DB_DIRECTORY,
-            new_features=["板块PE", "板块PB", "板块PS", "板块PCF"],
+            new_features=["区间前15天日均价"],
             parent_block_name=PARENT_BLOCK,
         )
 

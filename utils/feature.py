@@ -47,63 +47,72 @@ FEATURE_META: Dict[str, FeatureConfig] = {
 
     # ------------------------------财报数值-------------------------------
     "营业收入(单季)": FeatureConfig(True, ScalingMethod.LOG_ZSCORE, "财报", wind_api="wss", wind_field="wgsd_qfa_sales_oper",
-                              wind_params={"unit": "1", "rptDate": "", "rptType": "1", "currencyType": " "}),
+                              wind_params={"unit": "1", "rptDate": "$rptDate", "rptType": "1", "currencyType": " "}),
     "营业收入(TTM)": FeatureConfig(True, ScalingMethod.LOG_ZSCORE, "财报", wind_api="wss", wind_field="or_ttm3",
-                               wind_params={"unit": "1", "rptDate": "", "currencyType": " "}),
+                               wind_params={"unit": "1", "rptDate": "$rptDate", "currencyType": " "}),
     "经营活动现金流(TTM)": FeatureConfig(True, ScalingMethod.ZSCORE, "财报", wind_api="wss", wind_field="operatecashflow_ttm3",
-                                  wind_params={"unit": "1", "rptDate": "", "currencyType": " "}),
+                                  wind_params={"unit": "1", "rptDate": "$rptDate", "currencyType": " "}),
 
     # ------------------------------------------财报比例------------------------------------
     "毛利率(单季)": FeatureConfig(True, ScalingMethod.ZSCORE, "财报", wind_api="wss", wind_field="wgsd_qfa_grossprofitmargin",
-                             wind_params={"rptDate": "", "rptType": "1"}),
+                             wind_params={"rptDate": "$rptDate", "rptType": "1"}),
     "毛利率(TTM)": FeatureConfig(True, ScalingMethod.ZSCORE, "财报", wind_api="wss", wind_field="grossprofitmargin_ttm3",
-                              wind_params={"rptDate": ""}),
+                              wind_params={"rptDate": "$rptDate"}),
     "净利率(单季)": FeatureConfig(True, ScalingMethod.ZSCORE, "财报", wind_api="wss", wind_field="wgsd_qfa_netprofitmargin",
-                             wind_params={"unit": 1, "rptDate": "", "rptType": 1}),
+                             wind_params={"unit": 1, "rptDate": "$rptDate", "rptType": 1}),
     "净利率(TTM)": FeatureConfig(True, ScalingMethod.ZSCORE, "财报", wind_api="wss", wind_field="netprofitmargin_ttm3",
-                              wind_params={"rptDate": ""}),
+                              wind_params={"rptDate": "$rptDate"}),
     "总资产收益率(单季)": FeatureConfig(True, ScalingMethod.ZSCORE, "财报", wind_api="wss", wind_field="wgsd_qfa_roa",
-                                wind_params={"rptDate": "", "rptType": "1"}),
+                                wind_params={"rptDate": "$rptDate", "rptType": "1"}),
     "总资产收益率(TTM)": FeatureConfig(True, ScalingMethod.ZSCORE, "财报", wind_api="wss", wind_field="roa_ttm2",
-                                 wind_params={"rptDate": ""}),
+                                 wind_params={"rptDate": "$rptDate"}),
     "资产负债率": FeatureConfig(True, ScalingMethod.CLIP, "财报", wind_api="wss", wind_field="wgsd_debttoassets",
-                           wind_params={"rptDate": ""}),
+                           wind_params={"rptDate": "$rptDate"}),
     "总资产周转率": FeatureConfig(True, ScalingMethod.LOG_ZSCORE, "财报", wind_api="wss", wind_field="wgsd_assetsturn",
-                            wind_params={"rptDate": ""}),
+                            wind_params={"rptDate": "$rptDate"}),
 
     # -----------------------------------股市数值 (wss - 获取区间统计)--------------------------
     "区间收盘价": FeatureConfig(True, ScalingMethod.LOG_ZSCORE, "股市", wind_api="wss", wind_field="close_per",
-                           wind_params={"startDate": "", "endDate": "", "priceAdj": "F"}),
-    "区间日均收盘价": FeatureConfig(True, ScalingMethod.LOG_ZSCORE, "股市", wind_api="wss", wind_field="avgclose_per",
-                             wind_params={"ndays": "-1", "tradeDate": "", "priceAdj": "F"}),
+                           wind_params={"startDate": "$startDate_int", "endDate": "$endDate_int", "priceAdj": "F"}),
+    # "区间日均收盘价": FeatureConfig(True, ScalingMethod.LOG_ZSCORE, "股市", wind_api="wss", wind_field="avgclose_per",
+    #                          wind_params={"ndays": "$ndays", "tradeDate": "$tradeDate_end", "priceAdj": "F"}),
+    # "区间前15天日均价": FeatureConfig(True, ScalingMethod.LOG_ZSCORE, "股市", wind_api="wss", wind_field="avgclose_per",
+    #                            wind_params={"ndays": "10", "tradeDate": "$tradeDate_start", "priceAdj": "F"}),
+    "区间后15天日均价": FeatureConfig(True, ScalingMethod.LOG_ZSCORE, "股市", wind_api="wss", wind_field="avgclose_per",
+                               wind_params={"ndays": "-10", "tradeDate": "$tradeDate_end", "priceAdj": "F"}),
 
     # ---------------------------------股市比例------------------------------------
     "区间振幅": FeatureConfig(True, ScalingMethod.LOG_ZSCORE, "股市", wind_api="wss", wind_field="swing_per",
-                          wind_params={"startDate": "", "endDate": ""}),
+                          wind_params={"startDate": "$startDate_int", "endDate": "$endDate_int"}),
     "区间日均换手率": FeatureConfig(True, ScalingMethod.LOG_ZSCORE, "股市", wind_api="wss", wind_field="avg_turn_per",
-                             wind_params={"startDate": "", "endDate": ""}),
+                             wind_params={"startDate": "$startDate_int", "endDate": "$endDate_int"}),
     "区间平均PE": FeatureConfig(True, ScalingMethod.ZSCORE, "股市", wind_api="wss", wind_field="val_pettm_avg",
-                            wind_params={"startDate": "", "endDate": ""}),
+                            wind_params={"startDate": "$startDate_int", "endDate": "$endDate_int"}),
     "区间平均PB": FeatureConfig(True, ScalingMethod.LOG_ZSCORE, "股市", wind_api="wss", wind_field="val_pb_avg",
-                            wind_params={"startDate": "", "endDate": ""}),
+                            wind_params={"startDate": "$startDate_int", "endDate": "$endDate_int"}),
     "区间平均PS": FeatureConfig(True, ScalingMethod.LOG_ZSCORE, "股市", wind_api="wss", wind_field="val_psttm_avg",
-                            wind_params={"startDate": "", "endDate": ""}),
+                            wind_params={"startDate": "$startDate_int", "endDate": "$endDate_int"}),
     "市现率PCF": FeatureConfig(True, ScalingMethod.ZSCORE, "股市", wind_api="wss", wind_field="pcf_ocf_ttm",
-                            wind_params={"tradeDate": ""}),
+                            wind_params={"tradeDate": "$tradeDate_end"}),
 
     # ----------------------板块比例 (wsee - 获取板块历史估值)--------------------------------
     "板块涨跌幅": FeatureConfig(True, ScalingMethod.ZSCORE, "板块", wind_api="wsee", wind_field="sec_pq_pct_chg_tmc_wavg",
-                           wind_params={"startDate": "", "endDate": "", "DynamicTime": "0"}),
+                           wind_params={"startDate": "$startDate_int", "endDate": "$endDate_int", "DynamicTime": "0"}),
     "板块日均换手率": FeatureConfig(True, ScalingMethod.LOG_ZSCORE, "板块", wind_api="wsee", wind_field="sec_pq_avgturn_avg",
-                             wind_params={"startDate": "", "endDate": "", "DynamicTime": "0"}),
-    "板块PE": FeatureConfig(True, ScalingMethod.ZSCORE, "板块", wind_api="wsee", wind_field="sec_pe_media_chn",
-                          wind_params={"tradeDate": "", "ruleType": "10", "excludeRule": "2", "DynamicTime": "0"}),
-    "板块PB": FeatureConfig(True, ScalingMethod.LOG_ZSCORE, "板块", wind_api="wsee", wind_field="sec_pb_media_chn",
-                          wind_params={"tradeDate": "", "ruleType": "10", "excludeRule": "2", "DynamicTime": "0"}),
-    "板块PS": FeatureConfig(True, ScalingMethod.LOG_ZSCORE, "板块", wind_api="wsee", wind_field="sec_ps_media_chn",
-                          wind_params={"tradeDate": "", "ruleType": "10", "excludeRule": "2", "DynamicTime": "0"}),
-    "板块PCF": FeatureConfig(True, ScalingMethod.ZSCORE, "板块", wind_api="wsee", wind_field="sec_pcf_media_chn",
-                           wind_params={"tradeDate": "", "ruleType": "10", "excludeRule": "2", "DynamicTime": "0"}),
+                             wind_params={"startDate": "$startDate_int", "endDate": "$endDate_int",
+                                          "DynamicTime": "0"}),
+    "板块PE": FeatureConfig(
+        True, ScalingMethod.ZSCORE, "板块", wind_api="wsee", wind_field="sec_pe_media_chn",
+        wind_params={"tradeDate": "$tradeDate_end", "ruleType": "10", "excludeRule": "2", "DynamicTime": "0"}),
+    "板块PB": FeatureConfig(
+        True, ScalingMethod.LOG_ZSCORE, "板块", wind_api="wsee", wind_field="sec_pb_media_chn",
+        wind_params={"tradeDate": "$tradeDate_end", "ruleType": "10", "excludeRule": "2", "DynamicTime": "0"}),
+    "板块PS": FeatureConfig(
+        True, ScalingMethod.LOG_ZSCORE, "板块", wind_api="wsee", wind_field="sec_ps_media_chn",
+        wind_params={"tradeDate": "$tradeDate_end", "ruleType": "10", "excludeRule": "2", "DynamicTime": "0"}),
+    "板块PCF": FeatureConfig(
+        True, ScalingMethod.ZSCORE, "板块", wind_api="wsee", wind_field="sec_pcf_media_chn",
+        wind_params={"tradeDate": "$tradeDate_end", "ruleType": "10", "excludeRule": "2", "DynamicTime": "0"}),
 }
 
 # ------------------------- 4. 核心工具函数 -------------------------
@@ -158,31 +167,26 @@ def build_translated_data_map(wind_fields: List[str], values: List[list]) -> Dic
 # ------------------------- 5. Wind 接口动态参数构建 -------------------------
 
 
-def build_wind_options(config: FeatureConfig, context: Dict[str, Any]) -> str:
+def build_wind_options(config: FeatureConfig, master_context: Dict[str, Any]) -> str:
     """
-    根据 FeatureConfig 和上下文构建 Wind API 参数字符串。
+    根据 FeatureConfig 和主上下文构建 Wind API 参数字符串。
 
-    wind_params 约定：
-    - 空字符串 "" → 必须从 context 提供对应 key
-    - 非空字符串 → 直接使用静态值
-
-    Args:
-        config: 特征配置
-        context: 动态上下文字典
-
-    Returns:
-        str: Wind API 参数字符串，例如 "tradeDate=20250101;unit=1"
+    约定：
+    - wind_params 的 value 如果是以 '$' 开头的字符串 (e.g., "$rptDate")，
+      则会从 master_context 中查找同名 key (去掉 '$') 进行填充。
+    - 其他 value 被视为静态值直接使用。
     """
     param_list = []
     for key, value in config.wind_params.items():
-        try:
-            if value == "":  # 动态值
-                final_value = context[key]
-            else:  # 静态值
-                final_value = value
-        except KeyError:
-            print(f"[错误] (特征: {config.wind_field}) 构建 Wind 参数失败，缺少上下文 key: {key}")
-            final_value = "<MISSING>"
+        final_value = value
+        if isinstance(value, str) and value.startswith("$"):
+            # 这是一个动态占位符
+            context_key = value[1:]  # 去掉 '$'
+            if context_key in master_context:
+                final_value = master_context[context_key]
+            else:
+                # 在主上下文中未找到需要的 key，这是个严重错误
+                raise KeyError(f"特征 '{config.wind_field}' 需要的上下文参数 '{context_key}' 未在主上下文中提供。")
 
         param_list.append(f"{key}={final_value}")
 

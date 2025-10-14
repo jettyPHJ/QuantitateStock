@@ -137,7 +137,7 @@ class WindFinancialDataFetcher:
     # 获取单支股票所有信息
     def get_data(self) -> List[Dict[str, Any]]:
         """
-        获取单支股票在所有报告期的全量特征数据。
+        获取单支股票在所有报告期的全量特征数据。(已重构为“主上下文”模式)
         """
         report_dates, pub_dates = self.get_report_dates()
         if not report_dates:
@@ -154,27 +154,44 @@ class WindFinancialDataFetcher:
             prev_pub_date_str: str = pub_dates[i - 1]
 
             try:
-                # --- 新增逻辑：提前获取交易日数 ---
-                start_day_int = int(prev_pub_date_str.replace("-", ""))
-                end_day_int = int(pub_date_str.replace("-", ""))
 
+                # 【新增逻辑】在这里计算 ndays，并放入主上下文
+                start_day_int_str = prev_pub_date_str.replace("-", "")
+                end_day_int_str = pub_date_str.replace("-", "")
+
+                # 调用Wind API获取区间交易日数
                 wss_trade_days = check_wind_data(
-                    w.wss(self.stock_code, "trade_days_per", f"startDate={start_day_int};endDate={end_day_int}"),
+                    w.wss(self.stock_code, "trade_days_per",
+                          f"startDate={start_day_int_str};endDate={end_day_int_str}"),
                     context=f"stock_code:{self.stock_code}, 获取交易天数")
-                # 安全取值，拿不到就给 63
-                ndays_int = -(wss_trade_days.Data[0][0] if wss_trade_days.Data and wss_trade_days.Data[0] else 63)
+                # 安全取值，注意 avgclose_per 的 ndays 需要是负数表示整个区间
+                ndays_val = -(wss_trade_days.Data[0][0] if wss_trade_days.Data and wss_trade_days.Data[0] else 63)
 
-                context = {
+                # 1. 构建“主上下文”，包含所有可能被用到的动态值
+                master_context = {
                     "rptDate": report_date_str.replace("-", ""),
-                    "startDate": str(start_day_int),
-                    "endDate": str(end_day_int),
-                    "ndays": str(ndays_int),
-                    "tradeDate": pub_date_str.replace("-", ""),
                     "year": datetime.strptime(report_date_str, "%Y-%m-%d").year,
+
+                    # 为需要不同 tradeDate 的特征提供明确的、不冲突的 key
+                    "tradeDate_start": prev_pub_date_str.replace("-", ""),
+                    "tradeDate_end": pub_date_str.replace("-", ""),
+
+                    # 为需要整数格式日期的特征提供 key
+                    "startDate_int": prev_pub_date_str.replace("-", ""),
+                    "endDate_int": pub_date_str.replace("-", ""),
+                    "ndays": ndays_val,
                 }
 
-                fetched_data = fetch_data_from_wind(self.stock_code, self.block_code, features_to_fetch, context)
+                # 2. 直接调用 fetch_data_from_wind，它内部会通过新的 group 和 build 机制自动处理
+                #    不再需要手动分离特征或多次调用。
+                fetched_data = fetch_data_from_wind(
+                    self.stock_code,
+                    self.block_code,
+                    features_to_fetch,
+                    master_context  # <--- 传入的是包含所有可能性的主上下文
+                )
 
+                # 3. 组装记录
                 record = {
                     "报告期": report_date_str, "发布日期": pub_date_str, "统计开始日": prev_pub_date_str, "统计结束日": pub_date_str,
                     **fetched_data
